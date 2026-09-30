@@ -403,6 +403,9 @@ export class VDF_Manager {
                       item.StartDir = app.startInDirectory;
                       item.LaunchOptions = app.argumentString;
                       item.icon = icon_path;
+                      if (app.openVR !== undefined) {
+                        item.OpenVR = app.openVR;
+                      }
                       item.tags = _.union(app.steamCategories, item.tags);
                       if (app.sortAsTitle) {
                         item.sortas = app.sortAsTitle;
@@ -418,6 +421,7 @@ export class VDF_Manager {
                         StartDir: app.startInDirectory,
                         LaunchOptions: app.argumentString,
                         icon: icon_path,
+                        ...(app.openVR !== undefined && { OpenVR: app.openVR }),
                         tags: app.steamCategories,
                         ...(app.sortAsTitle && { sortas: app.sortAsTitle }),
                       });

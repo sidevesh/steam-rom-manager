@@ -213,6 +213,19 @@ export interface languageStruct {
       githubLauncherNotInstalled: string;
     }
   };
+  oculusParser: {
+    libraryDirTitle: string;
+    libraryDirPlaceholder: { [key: string]: string };
+    docs__md: {
+      self: string[];
+      input: string[];
+    };
+    errors: {
+      fatalError__i: string;
+      oculusNotCompatible: string;
+      oculusNotInstalled: string;
+    };
+  };
   epicParser: {
     manifestsInputTitle: string;
     manifestsInputPlaceholder: { [key: string]: string };

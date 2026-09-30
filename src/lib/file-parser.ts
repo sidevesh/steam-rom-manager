@@ -595,6 +595,7 @@ export class FileParser {
             defaultImage: initArtworkRecord<string>(() => null),
             backupImage: initArtworkRecord<string>(() => null),
             localImages: initArtworkRecord<string[]>(() => []),
+            openVR: parsedData.success[i].openVR,
             titles: titleModifierHandler.getTitleModifiers(i), // at this point includes up to and incl. postFuzzy
             sortAsTitle: sortTitlesFromVariables ? sortTitlesFromVariables[i] || "" : "",
             filePath: parsedData.success[i].filePath || "",
