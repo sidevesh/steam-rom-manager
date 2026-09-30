@@ -116,6 +116,7 @@ export interface PreviewDataApp {
   title: string;
   extractedTitle: string;
   argumentString: string;
+  openVR?: boolean;
   drmProtect: boolean;
   sortAsTitle?: string;
   images: Record<ArtworkType, PreviewDataAppImage>;

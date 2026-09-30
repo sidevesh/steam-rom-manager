@@ -33,6 +33,7 @@ export const availableParserInputs: Record<ParserType, string[]> = {
   UWP: ["UWPDir", "UWPLauncherMode"],
   "EA Desktop": ["eaGamesDir", "eaLauncherMode"],
   "Battle.net": ["battleExeOverride"],
+  Oculus: ["oculusLibraryDir"],
   "Non-SRM Shortcuts": [],
   "GitHub Launcher": ["githubLauncherDir"]
 };
@@ -85,6 +86,7 @@ export const availableParserInputsInfo: Record<
     eaLauncherMode: { inputType: "toggle" },
   },
   "Battle.net": { battleExeOverride: { inputType: "path" } },
+  Oculus: { oculusLibraryDir: { inputType: "dir" } },
   "Non-SRM Shortcuts": {},
   "GitHub Launcher": { githubLauncherDir: { inputType: "dir"} }
 };
@@ -107,6 +109,7 @@ export const superTypes: Record<SuperType, ParserType[]> = {
     "UWP",
     "EA Desktop",
     "Battle.net",
+    "Oculus",
     "GitHub Launcher"
   ],
 };

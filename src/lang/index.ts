@@ -148,6 +148,15 @@ function getMarkdown(langPath: string) {
         input: [require(`${langPath}/github-launcher-parser-input.md`)]
       }
     },
+    oculusParser: {
+      docs__md: {
+        self: [
+          require(`${langPath}/oculus-parser.md`),
+          require(`${langPath}/oculus-parser-input.md`),
+        ],
+        input: [require(`${langPath}/oculus-parser-input.md`)],
+      },
+    },
     epicParser: {
       docs__md: {
         self: [

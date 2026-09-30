@@ -46,6 +46,7 @@ export interface ParsedUserConfigurationFile {
   localImages: Record<ArtworkType, string[]>;
   resolvedDefaultImages: Record<ArtworkType, string[]>;
   resolvedLocalImages: Record<ArtworkType, string[]>;
+  openVR?: boolean;
 }
 
 export interface ParsedUserConfiguration {
@@ -102,6 +103,7 @@ export interface ParsedSuccess {
   fileLaunchOptions?: string; // Used by platform parsers executable mode
   startInDirectory?: string; //Used by manual parsers and parsers whose apps start in a different directory than the executable,
   appendArgsToExecutable?: boolean; //Used by manual parsers
+  openVR?: boolean; // Marks shortcuts that should launch in SteamVR mode
 }
 
 export interface ParsedData {
@@ -179,6 +181,7 @@ export type ParserType =
   | "UWP"
   | "EA Desktop"
   | "Battle.net"
+  | "Oculus"
   | "GitHub Launcher";
 export type SuperType = "Manual" | "ArtworkOnly" | "ROM" | "Platform";
 

@@ -13,4 +13,5 @@ export * from "./UWP.parser";
 export * from "./legendary.parser";
 export * from "./ea-desktop.parser";
 export * from "./battle-net.parser";
+export * from "./oculus.parser";
 export * from "./github-launcher.parser";

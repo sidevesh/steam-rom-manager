@@ -43,6 +43,7 @@ export interface VDF_ShortcutsItem {
   StartDir: string;
   LaunchOptions: string;
   icon: string;
+  OpenVR?: boolean;
   tags: string[];
   sortas?: string;
 }

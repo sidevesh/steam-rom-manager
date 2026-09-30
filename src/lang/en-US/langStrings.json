@@ -126,6 +126,19 @@
       "githubLauncherNotInstalled": "> It would appear that GitHub Launcher is not installed at the provided location."
     }
   },
+  "oculusParser": {
+    "libraryDirTitle": "Oculus Library Directory Override",
+    "libraryDirPlaceholder": {
+      "Windows_NT": "C:\\path\\to\\Oculus\\library\\",
+      "Darwin": "/path/to/Oculus/library/",
+      "Linux": "/path/to/Oculus/library/"
+    },
+    "errors": {
+      "fatalError__i": "> Oculus parser failed with fatal error:\n ${error}",
+      "oculusNotCompatible": "> Oculus Parser is only available on Windows.",
+      "oculusNotInstalled": "> No Oculus libraries were found. Install the Meta Quest Link app or specify a library directory override."
+    }
+  },
   "epicParser": {
     "manifestsInputTitle": "Epic Manifests Directory Override",
     "manifestsInputPlaceholder": {

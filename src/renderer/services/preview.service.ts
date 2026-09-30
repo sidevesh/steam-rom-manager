@@ -1054,6 +1054,7 @@ export class PreviewService {
               onlineProviders: config.imageProviders,
               drmProtect: config.drmProtect,
               argumentString: file.argumentString,
+              openVR: file.openVR,
               filePath: file.filePath,
               title: file.titles.final,
               extractedTitle: file.titles.extracted,
