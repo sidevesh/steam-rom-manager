@@ -18,7 +18,7 @@ export class AmazonGamesParser implements GenericParser {
         amazonGamesExeOverride: {
           label: this.lang.exeOverrideTitle,
           placeholder: this.lang.exeOverridePlaceholder[os.type()],
-          inputType: "dir",
+          inputType: "path",
           info: this.lang.docs__md.input.join(""),
         },
         amazonGamesLauncherMode: {
