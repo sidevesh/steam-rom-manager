@@ -532,7 +532,8 @@ export class FileParser {
       try {
         let vParser = new VariableParser({ left: "${", right: "}" });
         let launcherMode = !!(
-          config.parserInputs.epicLauncherMode ||
+          (config.parserInputs.epicLauncherMode &&
+            os.type() === "Windows_NT") ||
           config.parserInputs.legendaryLauncherMode ||
           config.parserInputs.gogLauncherMode ||
           config.parserInputs.amazonGamesLauncherMode ||
