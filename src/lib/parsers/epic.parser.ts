@@ -24,6 +24,7 @@ export class EpicParser implements GenericParser {
         epicLauncherMode: {
           label: this.lang.launcherModeInputTitle,
           inputType: "toggle",
+          hidden: os.type() !== "Windows_NT",
           info: this.lang.docs__md.input.join(""),
         },
       },
