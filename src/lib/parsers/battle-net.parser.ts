@@ -5,6 +5,7 @@ import { BlizzardParser } from "blizzard-product-parser";
 import * as fs from "fs-extra";
 import * as path from "path";
 import * as paths from "../../paths";
+import { logImporterEvent } from "../helpers/importer-diagnostics";
 
 // shamelessly borrowed from steamgriddb-manager
 const BNET_GAMES: {
@@ -131,6 +132,7 @@ export class BattleNetParser implements GenericParser {
           "C:\\Program Files (x86)\\Battle.net\\Battle.net.exe";
         const bNetDir = path.dirname(bNetExe);
         const scriptPath = path.join(paths.userDataDir, "scripts", "bnet.ps1");
+        logImporterEvent("battlenet.source", { database: dbPath, databaseExists: fs.existsSync(dbPath), launcherExecutable: bNetExe, launcherOverride: !!inputs.battleExeOverride, script: scriptPath, scriptExists: fs.existsSync(scriptPath) });
         if (!fs.existsSync(scriptPath)) {
           reject("bnet.ps1 script is missing");
         }
@@ -146,6 +148,7 @@ export class BattleNetParser implements GenericParser {
           (product: any) =>
             !(product.uid === "battle.net" || product.uid === "agent"),
         );
+        logImporterEvent("battlenet.products", { installed: installed.length });
         for (let product of installed) {
           const productCode: string = product.productCode.toLowerCase();
           if (BNET_GAMES[productCode]) {

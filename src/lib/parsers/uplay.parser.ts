@@ -9,6 +9,7 @@ import * as path from "path";
 import * as os from "os";
 import * as paths from "../../paths";
 import { quoteWindowsArgument } from "../helpers/windows-arguments";
+import { logImporterEvent } from "../helpers/importer-diagnostics";
 
 export class UPlayParser implements GenericParser {
   private get lang() {
@@ -76,6 +77,7 @@ export class UPlayParser implements GenericParser {
                 out[String(item.id)] = item.installDir;
               }
             });
+            logImporterEvent("ubisoft.registry.installs", { count: Object.keys(out).length });
             return resolve(out);
           });
         } else {
@@ -144,6 +146,7 @@ export class UPlayParser implements GenericParser {
         ),
       ];
       const configPath = candidateConfigPaths.find((p) => fs.existsSync(p));
+      logImporterEvent("ubisoft.source", { installRoot: ubisoftDir, candidateConfigPaths, selectedConfigPath: configPath, launcherMode: !!inputs.uplayLauncherMode });
       if (!configPath) {
         return reject(this.lang.errors.uplayNotInstalled);
       }
@@ -177,7 +180,9 @@ export class UPlayParser implements GenericParser {
                     gameParsed.root.launcher_id = launcherId;
                   }
                   finalOutput.push(gameParsed);
-                } catch (e) {}
+                } catch (e) {
+                  logImporterEvent("ubisoft.config.entry.failed", { launcherId, error: String(e) }, "warn");
+                }
 
                 let hexChars = foundId[1].match(/.{1,2}/g);
                 let ints = hexChars.map((x) => parseInt(x, 16));
@@ -234,6 +239,7 @@ export class UPlayParser implements GenericParser {
               );
             }
           });
+          logImporterEvent("ubisoft.config.games", { candidates: parsedGames.length, resolved: appTitles.length });
         })
         .then(() => {
           let parsedData: ParsedData = {

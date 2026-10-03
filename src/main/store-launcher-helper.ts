@@ -1,7 +1,9 @@
 import { app } from "electron";
 import * as fs from "fs";
 import * as path from "path";
+import { createHash } from "crypto";
 import * as paths from "../paths";
+import { logImporterEvent } from "../lib/helpers/importer-diagnostics";
 
 const executableName = "srm-store-launcher.exe";
 
@@ -26,11 +28,14 @@ export function deployStoreLauncherHelper(): void {
         executableName,
       );
 
+  logImporterEvent("helper.deploy.start", { packaged: app.isPackaged, architecture: process.arch, bundledPath, destination: paths.storeLauncherHelper, bundledExists: fs.existsSync(bundledPath) });
   const bundled = fs.readFileSync(bundledPath);
+  const sha256 = createHash("sha256").update(bundled).digest("hex");
   if (
     fs.existsSync(paths.storeLauncherHelper) &&
     bundled.equals(fs.readFileSync(paths.storeLauncherHelper))
   ) {
+    logImporterEvent("helper.deploy.unchanged", { destination: paths.storeLauncherHelper, bytes: bundled.length, sha256 });
     return;
   }
 
@@ -39,6 +44,7 @@ export function deployStoreLauncherHelper(): void {
   try {
     fs.writeFileSync(temporaryPath, bundled, { mode: 0o755 });
     fs.renameSync(temporaryPath, paths.storeLauncherHelper);
+    logImporterEvent("helper.deploy.updated", { destination: paths.storeLauncherHelper, bytes: bundled.length, sha256 });
   } finally {
     if (fs.existsSync(temporaryPath)) {
       fs.unlinkSync(temporaryPath);

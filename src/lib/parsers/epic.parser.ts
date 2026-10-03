@@ -7,6 +7,7 @@ import * as path from "path";
 import { glob } from "glob";
 import * as paths from "../../paths";
 import { quoteWindowsArgument } from "../helpers/windows-arguments";
+import { logImporterEvent } from "../helpers/importer-diagnostics";
 
 export class EpicParser implements GenericParser {
   private get lang() {
@@ -57,9 +58,11 @@ export class EpicParser implements GenericParser {
         }
       }
       if (!fs.existsSync(epicManifestsDir)) {
+        logImporterEvent("epic.manifests.missing", { directory: epicManifestsDir }, "error");
         return reject(this.lang.errors.epicNotInstalled);
       }
       try {
+        logImporterEvent("epic.manifests.start", { directory: epicManifestsDir, override: !!inputs.epicManifests, launcherMode: !!inputs.epicLauncherMode });
         let parsedData: ParsedData = {
           executableLocation: paths.storeLauncherHelper,
           success: [],
@@ -68,6 +71,7 @@ export class EpicParser implements GenericParser {
         const files: string[] = await glob(
           [epicManifestsDir.replace(/\\/g, "/"), "*.item"].join("/"),
         );
+        logImporterEvent("epic.manifests.found", { count: files.length });
         for (let file of files) {
           if (fs.existsSync(file) && fs.lstatSync(file).isFile()) {
             let item = JSON.parse(fs.readFileSync(file).toString());
@@ -98,6 +102,14 @@ export class EpicParser implements GenericParser {
                 filePath: launchPath,
                 fileLaunchOptions: item.LaunchCommand,
               });
+            } else {
+              logImporterEvent("epic.manifest.skipped", {
+                manifest: file,
+                title: item.DisplayName,
+                hasLaunchExecutable: !!item.LaunchExecutable,
+                gameExecutableExists: fs.existsSync(launchPath),
+                duplicateTitle: appTitles.includes(item.DisplayName),
+              }, "warn");
             }
           }
         }

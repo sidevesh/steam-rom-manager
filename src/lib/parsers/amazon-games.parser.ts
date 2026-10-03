@@ -7,6 +7,7 @@ import { parse } from "yaml";
 import { SqliteWrapper } from "../helpers/sqlite";
 import * as paths from "../../paths";
 import { quoteWindowsArgument } from "../helpers/windows-arguments";
+import { logImporterEvent } from "../helpers/importer-diagnostics";
 
 export class AmazonGamesParser implements GenericParser {
   private get lang() {
@@ -53,6 +54,7 @@ export class AmazonGamesParser implements GenericParser {
         const dbPath = path.resolve(
           `${path.dirname(amazonGamesExe)}\\..\\Data\\Games\\Sql\\GameInstallInfo.sqlite`,
         );
+        logImporterEvent("amazon.source", { launcherMode, launcherExecutable: amazonGamesExe, launcherOverride: !!inputs.amazonGamesExeOverride, database: dbPath, databaseExists: fs.existsSync(dbPath) });
 
         if (!fs.existsSync(dbPath)) {
           return reject(this.lang.errors.databaseNotFound);
@@ -61,6 +63,16 @@ export class AmazonGamesParser implements GenericParser {
         sqliteWrapper
           .callWorker()
           .then((games: { [k: string]: any }[]) => {
+            logImporterEvent("amazon.database.rows", { count: games.length });
+            for (const game of games) {
+              const fuelPath = game.InstallDirectory
+                ? path.join(game.InstallDirectory, "fuel.json")
+                : "";
+              const fuelExists = !!fuelPath && fs.existsSync(fuelPath);
+              if (!game.Installed || (!launcherMode && !fuelExists)) {
+                logImporterEvent("amazon.game.skipped", { title: game.ProductTitle, productId: game.Id, installDirectory: game.InstallDirectory, installed: !!game.Installed, fuelExists }, "warn");
+              }
+            }
             const success = games
               .filter(
                 ({
@@ -97,10 +109,12 @@ export class AmazonGamesParser implements GenericParser {
                             fuel.Main.Command,
                           );
                         }
-                      } catch {
+                      } catch (error) {
+                        logImporterEvent("amazon.fuel.failed", { title: ProductTitle, fuelPath, error: String(error) }, "warn");
                         // The install directory can still identify the running game.
                       }
                     }
+                    logImporterEvent("amazon.game.launcher", { title: ProductTitle, productId: Id, installDirectory: InstallDirectory, fuelExists: fs.existsSync(fuelPath), expectedExecutable: filePath, expectedExecutableExists: !!filePath && fs.existsSync(filePath) });
                     return {
                       extractedTitle: ProductTitle,
                       startInDirectory: InstallDirectory,

@@ -38,6 +38,7 @@ import { getPath, getArgs, getStartDir } from "windows-shortcuts-ps";
 import * as xdgparse from "xdg-parse";
 import { SteamGridDbProvider } from "./image-providers/steamgriddb.worker";
 import { TitleModifierHandler } from "./title-modifier-handler";
+import { logImporterEvent } from "./helpers/importer-diagnostics";
 
 
 interface PreParserResult {
@@ -102,6 +103,7 @@ export class FileParser {
   }
 
   executeFileParser(configs: UserConfiguration[], settings: AppSettings) {
+    logImporterEvent("parse.batch.start", { configurationCount: configs.length, platform: process.platform });
     let configPromises: Promise<ParsedUserConfiguration>[] = [];
     for (let i = 0; i < configs.length; i++) {
       let superType = parserInfo.superTypesMap[configs[i].parserType];
@@ -133,10 +135,46 @@ export class FileParser {
         .then(this.imagesPromise.bind(this))
         .then(this.titleLockPromise.bind(this))
         .then(this.backedUpLocalImagesPromise.bind(this))
+        .then((value) => {
+          const result = value as unknown as ParsedUserConfiguration;
+          logImporterEvent("parse.configuration.complete", {
+            parser: configs[i].parserType,
+            configuration: configs[i].configTitle,
+            shortcutCount: result.files.length,
+            failureCount: result.failed.length,
+            excludedCount: result.excluded.length,
+          });
+          if (superType === parserInfo.PlatformType || superType === parserInfo.ArtworkOnlyType) {
+            result.files.forEach((file, index) => {
+              logImporterEvent("shortcut.final", {
+                parser: result.parserType,
+                configuration: result.configurationTitle,
+                index,
+                title: file.titles.final,
+                target: file.executableLocation,
+                modifiedTarget: file.modifiedExecutableLocation,
+                startIn: file.startInDirectory,
+                argumentLength: file.argumentString.length,
+                launcherArguments: file.executableLocation === paths.storeLauncherHelper || result.parserType === "Battle.net" || result.parserType === "Legendary" ? file.argumentString : undefined,
+                openVR: !!file.openVR,
+              });
+            });
+          }
+          return result;
+        })
+        .catch((error) => {
+          logImporterEvent("parse.configuration.failed", {
+            parser: configs[i].parserType,
+            configuration: configs[i].configTitle,
+            error: String(error),
+          }, "error");
+          throw error;
+        })
       );
     }
     return Promise.all(configPromises)
       .then((parsedConfigs: ParsedUserConfiguration[]) => {
+        logImporterEvent("parse.batch.complete", { configurationCount: parsedConfigs.length });
         let maxAccounts: number = Math.max(
           ...parsedConfigs.map(
             (x: ParsedUserConfiguration) => x.foundUserAccounts.length,
@@ -295,9 +333,45 @@ export class FileParser {
                 path.join(config.steamDirectory, "userdata", account.accountID),
             );
           }
+          logImporterEvent("parser.start", {
+            parser: config.parserType,
+            configuration: config.configTitle,
+            input: config.parserInputs,
+            accountCount: filteredAccounts.found.length,
+            missingAccountCount: filteredAccounts.missing.length,
+            directories,
+          });
           this.availableParsers[config.parserType]
             .execute(directories, config.parserInputs)
             .then((parsedData: ParsedData) => {
+              logImporterEvent("parser.complete", {
+                parser: config.parserType,
+                configuration: config.configTitle,
+                target: parsedData.executableLocation,
+                discovered: parsedData.success.length,
+                skipped: parsedData.failed.length,
+              });
+              parsedData.success.forEach((game, index) => {
+                logImporterEvent("parser.game", {
+                  parser: config.parserType,
+                  configuration: config.configTitle,
+                  index,
+                  title: game.extractedTitle,
+                  appId: game.extractedAppId,
+                  executable: game.filePath,
+                  startIn: game.startInDirectory,
+                  hasLauncherArguments: !!game.launchOptions,
+                  hasDirectArguments: !!game.fileLaunchOptions,
+                  openVR: !!game.openVR,
+                });
+              });
+              parsedData.failed.forEach((reason) => {
+                logImporterEvent("parser.game.skipped", {
+                  parser: config.parserType,
+                  configuration: config.configTitle,
+                  reason,
+                }, "warn");
+              });
               resolve({
                 superType: superType,
                 config: config,
@@ -307,6 +381,7 @@ export class FileParser {
               });
             })
             .catch((error) => {
+              logImporterEvent("parser.failed", { parser: config.parserType, configuration: config.configTitle, error: String(error) }, "error");
               reject(error);
             });
         } else {
@@ -667,6 +742,20 @@ export class FileParser {
             newFile.modifiedExecutableLocation = newFile.executableLocation
               ? `"${newFile.executableLocation}"`
               : "";
+          }
+          if (superType === parserInfo.PlatformType || superType === parserInfo.ArtworkOnlyType) {
+            logImporterEvent("shortcut.route", {
+              parser: config.parserType,
+              configuration: config.configTitle,
+              title: parsedData.success[i].extractedTitle,
+              mode: superType === parserInfo.ArtworkOnlyType ? "artwork-only" : launcherMode ? "launcher" : "direct",
+              target: newFile.executableLocation,
+              modifiedTarget: newFile.modifiedExecutableLocation,
+              startIn: newFile.startInDirectory,
+              argumentLength: newFile.argumentString.length,
+              launcherArguments: launcherMode ? newFile.argumentString : undefined,
+              openVR: !!newFile.openVR,
+            });
           }
           newFile.onlineImageQueries = config.onlineImageQueries
             .map((query) => {

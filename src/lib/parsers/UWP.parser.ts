@@ -10,6 +10,7 @@ import { SimpleUWPApp, SimpleManifest } from "../../models";
 import { glob } from "glob";
 import * as paths from "../../paths";
 import { quoteWindowsArgument } from "../helpers/windows-arguments";
+import { logImporterEvent } from "../helpers/importer-diagnostics";
 
 export class UWPParser implements GenericParser {
   private get lang() {
@@ -54,6 +55,7 @@ export class UWPParser implements GenericParser {
         const files = await glob("*/{,Content/}appxmanifest.xml", {
           cwd: UWPDir,
         });
+        logImporterEvent("xbox.manifests", { directory: UWPDir, count: files.length, launcherMode: !!inputs.UWPLauncherMode });
         let finalData: ParsedData = {
           executableLocation: inputs.UWPLauncherMode
             ? paths.storeLauncherHelper
@@ -146,10 +148,15 @@ export class UWPParser implements GenericParser {
                         filePath: gameDetail.path,
                         //fileLaunchOptions: not available
                       });
+                      logImporterEvent("xbox.package.game", { title: gameDetail.name, aumid: gameDetail.arguments, expectedExecutable: gameDetail.path, installDirectory: gameDetail.workdir });
+                    } else {
+                      logImporterEvent("xbox.package.skipped", { manifest: file, identity: gameManifest.idName, reason: "package details unavailable or incomplete" }, "warn");
                     }
                   }
                 }
               }
+            } else {
+              logImporterEvent("xbox.manifest.invalid", { manifest: file }, "warn");
             }
           }
         }
@@ -243,6 +250,7 @@ const getUWPAppDetail = async (
   manifest: SimpleManifest,
   xmlParser: XMLParser,
 ) => {
+  logImporterEvent("xbox.package.lookup", { identity: manifest.idName, publisher: manifest.idPublisher });
   let uwpApp: SimpleUWPApp = {} as SimpleUWPApp;
   const command = `$PkgMgr = [Windows.Management.Deployment.PackageManager,Windows.Web,ContentType=WindowsRuntime]::new();
   $package = $PkgMgr.FindPackagesForUser([System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value, "${manifest.idName}", "${manifest.idPublisher}");
@@ -254,6 +262,7 @@ const getUWPAppDetail = async (
     out.on("close", () => resolve(""));
   });
   if (!searchResults) {
+    logImporterEvent("xbox.package.lookup.empty", { identity: manifest.idName }, "warn");
     return;
   }
   const jsonuwpapp = JSON.parse(searchResults);
@@ -262,6 +271,7 @@ const getUWPAppDetail = async (
     jsonuwpapp.IsResourcePackage ||
     jsonuwpapp.SignatureKind != 3 // https://docs.microsoft.com/en-us/uwp/api/windows.applicationmodel.packagesignaturekind
   ) {
+    logImporterEvent("xbox.package.lookup.filtered", { identity: manifest.idName, isFramework: !!jsonuwpapp.IsFramework, isResourcePackage: !!jsonuwpapp.IsResourcePackage, signatureKind: jsonuwpapp.SignatureKind });
     return;
   }
   try {
@@ -319,6 +329,7 @@ const getUWPAppDetail = async (
     }
   } catch (err) {
     console.error("Error parsing xml files: " + err);
+    logImporterEvent("xbox.package.manifest.failed", { identity: manifest.idName, error: String(err) }, "error");
   }
   return uwpApp;
 };

@@ -18,6 +18,8 @@ Steam ROM Manager (SRM) is a super flexible tool for adding non-Steam games to S
 
 For an overview of how SRM works see [here](https://steamgriddb.github.io/steam-rom-manager/). There is plenty of documentation available in the app's built in FAQ and documentation, and if you need further help there are expert users to be found on the [SGDB discord](https://discord.gg/bnSVJrz) under the Steam ROM Manager category and the [SRM subreddit](https://www.reddit.com/r/SteamRomManager/).
 
+If a Windows store importer or launcher shortcut fails, see [Windows diagnostic logs](docs/windows-diagnostics.md) for how to collect shareable logs without a development setup.
+
 Check out the [releases page](https://github.com/SteamGridDB/steam-rom-manager/releases) for compiled downloads for Windows (exe, msi), macOS (dmg), and Linux (AppImage, deb).
 
 The Windows version is also available as a [Chocolatey package](https://community.chocolatey.org/packages/steam-rom-manager).

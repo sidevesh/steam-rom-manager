@@ -18,6 +18,10 @@ func (t *Tracker) Empty() bool {
 	return len(t.tracked) == 0
 }
 
+func (t *Tracker) Count() int {
+	return len(t.tracked)
+}
+
 func (t *Tracker) Add(process processes.Info) bool {
 	identity := process.Identity()
 	if _, exists := t.tracked[identity]; exists {

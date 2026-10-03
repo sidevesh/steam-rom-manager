@@ -2,6 +2,7 @@ package session
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/SteamGridDB/steam-rom-manager/native/store-launcher/internal/cli"
@@ -63,12 +64,20 @@ func RunWithClock(options cli.Options, source processes.Source, launcher Launche
 		options.ProcessOverride, options.StartTimeout, options.PollInterval, options.HandoffGrace,
 		options.AllowExistingMatch,
 	)
+	if options.ExpectedExecutable != "" {
+		_, statError := os.Stat(options.ExpectedExecutable)
+		logger.Printf("expected executable check path=%q exists=%t error=%v", options.ExpectedExecutable, statError == nil, statError)
+	}
+	if options.InstallDirectory != "" {
+		_, statError := os.Stat(options.InstallDirectory)
+		logger.Printf("install directory check path=%q exists=%t error=%v", options.InstallDirectory, statError == nil, statError)
+	}
 	activatedPID, err := launcher.Launch(options)
 	if err != nil {
 		logger.Printf("store activation failed store=%q: %v", options.Store, err)
 		return &ExitError{Code: ExitActivationFailed, Err: err}
 	}
-	logger.Printf("store activation succeeded store=%q", options.Store)
+	logger.Printf("store activation succeeded store=%q activatedPID=%d", options.Store, activatedPID)
 
 	detector := NewDetector(
 		options.ExpectedExecutable,
@@ -78,6 +87,7 @@ func RunWithClock(options cli.Options, source processes.Source, launcher Launche
 		launchTime,
 	)
 	deadline := launchTime.Add(options.StartTimeout)
+	lastDiscoveryLog := launchTime
 	var snapshot []processes.Info
 	var selected Match
 	for {
@@ -85,6 +95,10 @@ func RunWithClock(options cli.Options, source processes.Source, launcher Launche
 		snapshot, err = source.Snapshot()
 		if err != nil {
 			return internalError("capture process snapshot during discovery", err)
+		}
+		if clock.Now().Sub(lastDiscoveryLog) >= 5*time.Second {
+			logger.Printf("discovery pending elapsed=%s remaining=%s processCount=%d", clock.Now().Sub(launchTime), deadline.Sub(clock.Now()), len(snapshot))
+			lastDiscoveryLog = clock.Now()
 		}
 		if match, found := activatedProcess(snapshot, activatedPID); found {
 			selected = match
@@ -106,7 +120,9 @@ func RunWithClock(options cli.Options, source processes.Source, launcher Launche
 	}
 
 	tracker := NewTracker(selected.Process)
+	logger.Printf("tracking started rootPID=%d rootName=%q rootExecutable=%q", selected.Process.PID, selected.Process.Name, selected.Process.Executable)
 	var emptySince time.Time
+	lastTrackingLog := clock.Now()
 	for {
 		clock.Sleep(options.PollInterval)
 		snapshot, err = source.Snapshot()
@@ -115,6 +131,10 @@ func RunWithClock(options cli.Options, source processes.Source, launcher Launche
 		}
 		for _, event := range tracker.Update(snapshot, detector) {
 			logger.Printf("%s", event)
+		}
+		if clock.Now().Sub(lastTrackingLog) >= 15*time.Second {
+			logger.Printf("tracking heartbeat elapsed=%s trackedProcessCount=%d snapshotProcessCount=%d", clock.Now().Sub(launchTime), tracker.Count(), len(snapshot))
+			lastTrackingLog = clock.Now()
 		}
 		if !tracker.Empty() {
 			emptySince = time.Time{}

@@ -13,6 +13,7 @@ import { SqliteWrapper } from "../helpers/sqlite";
 import Registry from "winreg";
 import * as paths from "../../paths";
 import { quoteWindowsArgument } from "../helpers/windows-arguments";
+import { logImporterEvent } from "../helpers/importer-diagnostics";
 
 function gogHelperArguments(
   galaxyExe: string,
@@ -151,6 +152,7 @@ export class GOGParser implements GenericParser {
                   .filter((x) => x && x.failMessage)
                   .map((x) => x.failMessage),
               };
+              logImporterEvent("gog.registry.result", { discovered: parsedData.success.length, skipped: parsedData.failed.length, launcherExecutable: executableLocation });
               return resolve(parsedData);
             })
             .catch((err) => {
@@ -183,6 +185,7 @@ export class GOGParser implements GenericParser {
       if (inputs.galaxyExeOverride) {
         galaxyExePath = inputs.galaxyExeOverride;
       }
+      logImporterEvent("gog.source", { source: inputs.parseRegistryEntries && os.type() == "Windows_NT" ? "registry" : "galaxy-database", database: dbPath, launcherExecutable: galaxyExePath, launcherOverride: !!inputs.galaxyExeOverride, launcherMode: !!inputs.gogLauncherMode, linkedExecutables: !!inputs.parseLinkedExecs });
       if (inputs.parseRegistryEntries && os.type() == "Windows_NT") {
         this.getRegInstalled(galaxyExePath)
           .then((parsedData) => {
@@ -212,6 +215,7 @@ export class GOGParser implements GenericParser {
             externals: !!inputs.parseLinkedExecs,
           });
           const playtasks = (await sqliteWrapper.callWorker()) as any[];
+          logImporterEvent("gog.database.tasks", { count: playtasks.length });
           let parsedData: ParsedData = { success: [], failed: [] };
           const windowsLauncherMode =
             os.type() == "Windows_NT" && inputs.gogLauncherMode;
@@ -248,6 +252,8 @@ export class GOGParser implements GenericParser {
                 filePath: task.params.executablePath,
                 fileLaunchOptions: task.params.commandLineArgs,
               });
+            } else {
+              logImporterEvent("gog.task.skipped", { productId: task.productId, title: task.title, reason: "missing executablePath" }, "warn");
             }
           }
           resolve(parsedData);

@@ -8,6 +8,7 @@ import * as bvdf from "binary-vdf-2";
 import { glob } from "glob";
 import * as steam from "../helpers/steam";
 import { ipcRenderer } from "electron";
+import { logImporterEvent } from "../helpers/importer-diagnostics";
 
 export class SteamParser implements GenericParser {
   private get lang() {
@@ -82,6 +83,7 @@ export class SteamParser implements GenericParser {
       }
       try {
         const strategy = inputs.parseStrategy || "installed";
+        logImporterEvent("steam.source", { strategy, onlyInstalled: !!inputs.onlyInstalled, appTypes: inputs.appTypes, selectedAccountDirectory: directories[0], apiKeyProvided: !!inputs.steamApiKey });
         const allowedTypes = (inputs.appTypes || []).filter(
           (x: string) => x !== "sourcemods",
         );
@@ -162,6 +164,7 @@ export class SteamParser implements GenericParser {
             }
             filteredApps.push({ title: (g.name || "").toString(), appid });
           }
+          logImporterEvent("steam.webapi.results", { count: games.length, selected: filteredApps.length });
         } else {
           // Offline: filter the local appinfo cache down to owned titles using
           // apptickets (installed at least once), honoring Application Types.
@@ -209,6 +212,7 @@ export class SteamParser implements GenericParser {
                 appid: app.appinfo.appid.toString(),
               };
             });
+          logImporterEvent("steam.local.results", { cached: appinfos.length, selected: filteredApps.length, installedFilterCount: installedIds?.length });
         }
         if ((inputs.appTypes || []).includes("sourcemods")) {
           const wtfValve: number = 2147483649;
