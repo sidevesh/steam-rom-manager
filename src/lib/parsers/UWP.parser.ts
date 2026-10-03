@@ -8,6 +8,8 @@ import { spawn } from "child_process";
 import { XMLParser, XMLValidator } from "fast-xml-parser";
 import { SimpleUWPApp, SimpleManifest } from "../../models";
 import { glob } from "glob";
+import * as paths from "../../paths";
+import { quoteWindowsArgument } from "../helpers/windows-arguments";
 
 export class UWPParser implements GenericParser {
   private get lang() {
@@ -53,7 +55,9 @@ export class UWPParser implements GenericParser {
           cwd: UWPDir,
         });
         let finalData: ParsedData = {
-          executableLocation: "C:\\WINDOWS\\explorer.exe",
+          executableLocation: inputs.UWPLauncherMode
+            ? paths.storeLauncherHelper
+            : "C:\\WINDOWS\\explorer.exe",
           success: [],
           failed: [],
         };
@@ -125,7 +129,20 @@ export class UWPParser implements GenericParser {
                     ) {
                       finalData.success.push({
                         extractedTitle: gameDetail.name,
-                        launchOptions: gameDetail.arguments,
+                        launchOptions: [
+                          "--store xbox",
+                          "--aumid",
+                          quoteWindowsArgument(
+                            gameDetail.arguments.replace(
+                              /^shell:AppsFolder\\/i,
+                              "",
+                            ),
+                          ),
+                          "--exe",
+                          quoteWindowsArgument(gameDetail.path),
+                          "--install-dir",
+                          quoteWindowsArgument(gameDetail.workdir),
+                        ].join(" "),
                         filePath: gameDetail.path,
                         //fileLaunchOptions: not available
                       });

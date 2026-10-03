@@ -11,6 +11,30 @@ import * as path from "path";
 import * as os from "os";
 import { SqliteWrapper } from "../helpers/sqlite";
 import Registry from "winreg";
+import * as paths from "../../paths";
+import { quoteWindowsArgument } from "../helpers/windows-arguments";
+
+function gogHelperArguments(
+  galaxyExe: string,
+  gameId: string,
+  gameExe: string,
+): string {
+  return [
+    "--store gog",
+    "--launch-exe",
+    quoteWindowsArgument(galaxyExe),
+    "--launch-arg",
+    quoteWindowsArgument("/command=runGame"),
+    "--launch-arg",
+    quoteWindowsArgument(`/gameId=${gameId}`),
+    "--launch-cwd",
+    quoteWindowsArgument(path.dirname(galaxyExe)),
+    "--exe",
+    quoteWindowsArgument(gameExe),
+    "--install-dir",
+    quoteWindowsArgument(path.dirname(gameExe)),
+  ].join(" ");
+}
 
 export class GOGParser implements GenericParser {
   private get lang() {
@@ -162,7 +186,18 @@ export class GOGParser implements GenericParser {
       if (inputs.parseRegistryEntries && os.type() == "Windows_NT") {
         this.getRegInstalled(galaxyExePath)
           .then((parsedData) => {
-            parsedData.executableLocation = galaxyExePath;
+            if (inputs.gogLauncherMode) {
+              parsedData.executableLocation = paths.storeLauncherHelper;
+              for (const game of parsedData.success) {
+                game.launchOptions = gogHelperArguments(
+                  galaxyExePath,
+                  String(game.extractedAppId),
+                  game.filePath,
+                );
+              }
+            } else {
+              parsedData.executableLocation = galaxyExePath;
+            }
             resolve(parsedData);
           })
           .catch((err) => {
@@ -178,7 +213,11 @@ export class GOGParser implements GenericParser {
           });
           const playtasks = (await sqliteWrapper.callWorker()) as any[];
           let parsedData: ParsedData = { success: [], failed: [] };
-          parsedData.executableLocation = galaxyExePath;
+          const windowsLauncherMode =
+            os.type() == "Windows_NT" && inputs.gogLauncherMode;
+          parsedData.executableLocation = windowsLauncherMode
+            ? paths.storeLauncherHelper
+            : galaxyExePath;
           for (let task of playtasks) {
             if (task.params.executablePath) {
               const productID = task.productId.toString();
@@ -199,7 +238,13 @@ export class GOGParser implements GenericParser {
               parsedData.success.push({
                 extractedTitle: task.title || fallbackTitle,
                 extractedAppId: productID,
-                launchOptions: `${flag}command=runGame ${flag}gameId=${productID}`,
+                launchOptions: windowsLauncherMode
+                  ? gogHelperArguments(
+                      galaxyExePath,
+                      productID,
+                      task.params.executablePath,
+                    )
+                  : `${flag}command=runGame ${flag}gameId=${productID}`,
                 filePath: task.params.executablePath,
                 fileLaunchOptions: task.params.commandLineArgs,
               });

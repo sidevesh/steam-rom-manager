@@ -30,6 +30,13 @@ jobs:
           node-version: 24
           check-latest: true
 
+      - name: Setup Go environment
+        if: ${{ matrix.os == 'windows-2022' }}
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: native/store-launcher/go.mod
+          cache-dependency-path: native/store-launcher/go.sum
+
       - name: Install dependencies
         run: |
           npm install -g yarn@1.22

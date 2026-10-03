@@ -5,6 +5,8 @@ import * as fs from "fs-extra";
 import * as os from "os";
 import * as path from "path";
 import { glob } from "glob";
+import * as paths from "../../paths";
+import { quoteWindowsArgument } from "../helpers/windows-arguments";
 
 export class EpicParser implements GenericParser {
   private get lang() {
@@ -59,7 +61,7 @@ export class EpicParser implements GenericParser {
       }
       try {
         let parsedData: ParsedData = {
-          executableLocation: `C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe`,
+          executableLocation: paths.storeLauncherHelper,
           success: [],
           failed: [],
         };
@@ -79,10 +81,20 @@ export class EpicParser implements GenericParser {
               !appTitles.includes(item.DisplayName)
             ) {
               appTitles.push(item.DisplayName);
+              const epicUri = `com.epicgames.launcher://apps/${item.AppName}?action=launch&silent=true`;
               parsedData.success.push({
                 extractedTitle: item.DisplayName,
                 extractedAppId: item.AppName,
-                launchOptions: `-windowStyle hidden -NoProfile -ExecutionPolicy Bypass -Command "&Start-Process \\"com.epicgames.launcher://apps/${item.AppName}?action=launch&silent=true\\""`,
+                launchOptions: [
+                  "--store",
+                  "epic",
+                  "--uri",
+                  quoteWindowsArgument(epicUri),
+                  "--exe",
+                  quoteWindowsArgument(launchPath),
+                  "--install-dir",
+                  quoteWindowsArgument(item.InstallLocation),
+                ].join(" "),
                 filePath: launchPath,
                 fileLaunchOptions: item.LaunchCommand,
               });

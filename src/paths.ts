@@ -13,6 +13,15 @@ if (process.env.PORTABLE_EXECUTABLE_DIR) {
 }
 
 export const userDataDir: string = _userDataDir;
+const launcherHelperRoot = process.env.LOCALAPPDATA
+  ? path.join(process.env.LOCALAPPDATA, "Steam ROM Manager")
+  : app.getPath("userData");
+export const storeLauncherHelper: string = path.join(
+  launcherHelperRoot,
+  "helpers",
+  "store-launcher",
+  "srm-store-launcher.exe",
+);
 export const userSettings: string = path.join(userDataDir, "userSettings.json");
 export const userThemesDir: string = path.join(userDataDir, "User themes");
 export const userConfigurations: string = path.join(

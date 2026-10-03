@@ -5,6 +5,8 @@ import * as os from "os";
 import * as path from "path";
 import { parse } from "yaml";
 import { SqliteWrapper } from "../helpers/sqlite";
+import * as paths from "../../paths";
+import { quoteWindowsArgument } from "../helpers/windows-arguments";
 
 export class AmazonGamesParser implements GenericParser {
   private get lang() {
@@ -84,10 +86,39 @@ export class AmazonGamesParser implements GenericParser {
                   [key: string]: string;
                 }) => {
                   if (launcherMode) {
+                    let filePath: string;
+                    const fuelPath = path.join(InstallDirectory, "fuel.json");
+                    if (fs.existsSync(fuelPath)) {
+                      try {
+                        const fuel = parse(fs.readFileSync(fuelPath, "utf8"));
+                        if (fuel?.Main?.Command) {
+                          filePath = path.join(
+                            InstallDirectory,
+                            fuel.Main.Command,
+                          );
+                        }
+                      } catch {
+                        // The install directory can still identify the running game.
+                      }
+                    }
                     return {
                       extractedTitle: ProductTitle,
                       startInDirectory: InstallDirectory,
-                      launchOptions: `amazon-games://play/${Id}`,
+                      filePath,
+                      launchOptions: [
+                        "--store amazon",
+                        "--launch-exe",
+                        quoteWindowsArgument(amazonGamesExe),
+                        "--launch-arg",
+                        quoteWindowsArgument(`amazon-games://play/${Id}`),
+                        "--launch-cwd",
+                        quoteWindowsArgument(path.dirname(amazonGamesExe)),
+                        ...(filePath
+                          ? ["--exe", quoteWindowsArgument(filePath)]
+                          : []),
+                        "--install-dir",
+                        quoteWindowsArgument(InstallDirectory),
+                      ].join(" "),
                     };
                   }
 
@@ -108,7 +139,9 @@ export class AmazonGamesParser implements GenericParser {
               );
 
             resolve({
-              executableLocation: launcherMode ? amazonGamesExe : null,
+              executableLocation: launcherMode
+                ? paths.storeLauncherHelper
+                : null,
               success: success,
               failed: [],
             });

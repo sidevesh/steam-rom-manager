@@ -4,9 +4,11 @@ package win32
 
 import (
 	"fmt"
+	"os/exec"
 	"runtime"
 	"unsafe"
 
+	"github.com/SteamGridDB/steam-rom-manager/native/store-launcher/internal/cli"
 	"golang.org/x/sys/windows"
 )
 
@@ -26,7 +28,25 @@ var (
 
 type ShellLauncher struct{}
 
-func (ShellLauncher) Open(uri string) error {
+func (ShellLauncher) Launch(options cli.Options) (uint32, error) {
+	if options.AppUserModelID != "" {
+		return activateApplication(options.AppUserModelID)
+	}
+	if options.LaunchExecutable != "" {
+		command := exec.Command(options.LaunchExecutable, options.LaunchArguments...)
+		command.Dir = options.LaunchDirectory
+		if err := command.Start(); err != nil {
+			return 0, err
+		}
+		if err := command.Process.Release(); err != nil {
+			return 0, err
+		}
+		return 0, nil
+	}
+	return 0, openURI(options.URI)
+}
+
+func openURI(uri string) error {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 

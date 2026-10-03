@@ -17,6 +17,7 @@ import * as clc from "cli-color";
 import yargs, { Argv } from "yargs";
 import { hideBin } from "yargs/helpers";
 import { UserConfiguration } from "../models";
+import { deployStoreLauncherHelper } from "./store-launcher-helper";
 
 // Crash Reporting
 crashReporter.start({
@@ -246,6 +247,11 @@ autoUpdater.on("update-downloaded", (info) => {
 
 // Main Listeners
 app.on("ready", () => {
+  try {
+    deployStoreLauncherHelper();
+  } catch (error) {
+    log.error("Failed to deploy the store launcher helper", error);
+  }
   // Registered for both CLI and GUI modes. Fetches a Steam account's owned
   // games via the Steam Web API in the main process using Electron's net
   // module, so it uses Chromium's network stack (system certificate store +

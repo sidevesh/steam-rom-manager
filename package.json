@@ -21,7 +21,13 @@
         "nsis",
         "portable"
       ],
-      "icon": "./src/assets/icons/win.ico"
+      "icon": "./src/assets/icons/win.ico",
+      "extraResources": [
+        {
+          "from": "native/store-launcher/dist/${arch}/srm-store-launcher.exe",
+          "to": "helpers/store-launcher/srm-store-launcher.exe"
+        }
+      ]
     },
     "portable": {
       "artifactName": "${productName}-portable-${version}.${ext}"
@@ -73,7 +79,8 @@
     "build:renderer": "cross-env NODE_ENV=production webpack --config ./webpack/renderer.js",
     "prebuild:dist": "yarn run prepare:build",
     "build:dist": "rimraf dist && yarn run build:main && yarn run build:renderer",
-    "build:win": "electron-builder --win --ia32 --x64 --arm64",
+    "build:store-helper:win": "node native/store-launcher/build.js ia32 && node native/store-launcher/build.js x64 && node native/store-launcher/build.js arm64",
+    "build:win": "yarn run build:store-helper:win && electron-builder --win --ia32 --x64 --arm64",
     "build:linux": "electron-builder --linux --x64 --arm64",
     "build:mac": "electron-builder --mac --x64 --arm64",
     "build:linuxdir": "electron-builder --linux --x64 --dir && echo '24.1.3' > release/linux-unpacked/version && cp LICENSE release/linux-unpacked/",
