@@ -7,6 +7,8 @@ import Registry from "winreg";
 import * as genericParser from "@node-steam/vdf";
 import * as path from "path";
 import * as os from "os";
+import * as paths from "../../paths";
+import { quoteWindowsArgument } from "../helpers/windows-arguments";
 
 export class UPlayParser implements GenericParser {
   private get lang() {
@@ -111,6 +113,7 @@ export class UPlayParser implements GenericParser {
       let appTitles: string[] = [];
       let appNames: string[] = [];
       let appPaths: string[] = [];
+      let appInstallDirs: string[] = [];
       let installDirDictPromise: Promise<any> = null;
       let ubisoftDir = inputs.uplayDir || "C:\\Program Files (x86)\\Ubisoft";
       if (os.type() === "Windows_NT") {
@@ -222,6 +225,7 @@ export class UPlayParser implements GenericParser {
             ) {
               appTitles.push(item.installer.game_identifier.toString());
               appNames.push(item.launcher_id.toString());
+              appInstallDirs.push(installDirDict[item.launcher_id.toString()]);
               appPaths.push(
                 path.join(
                   installDirDict[item.launcher_id.toString()],
@@ -233,7 +237,7 @@ export class UPlayParser implements GenericParser {
         })
         .then(() => {
           let parsedData: ParsedData = {
-            executableLocation: `C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe`,
+            executableLocation: paths.storeLauncherHelper,
             success: [],
             failed: [],
           };
@@ -241,7 +245,16 @@ export class UPlayParser implements GenericParser {
             parsedData.success.push({
               extractedTitle: appTitles[i],
               extractedAppId: appNames[i],
-              launchOptions: `-windowStyle hidden -NoProfile -ExecutionPolicy Bypass -Command "&Start-Process \\"uplay://launch/${appNames[i]}\\""`,
+              launchOptions: [
+                "--store",
+                "ubisoft",
+                "--uri",
+                quoteWindowsArgument(`uplay://launch/${appNames[i]}`),
+                "--exe",
+                quoteWindowsArgument(appPaths[i]),
+                "--install-dir",
+                quoteWindowsArgument(appInstallDirs[i]),
+              ].join(" "),
               filePath: appPaths[i],
               //fileLaunchOptions: not available
             });

@@ -25,7 +25,7 @@ func New(requestedPath string) *Logger {
 		if base == "" {
 			base, _ = os.UserConfigDir()
 		}
-		logPath = filepath.Join(base, "Steam ROM Manager", "logs", "epic-launcher.log")
+		logPath = filepath.Join(base, "Steam ROM Manager", "logs", "store-launcher.log")
 	}
 	extension := filepath.Ext(logPath)
 	previous := strings.TrimSuffix(logPath, extension) + ".previous" + extension

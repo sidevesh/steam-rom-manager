@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"github.com/SteamGridDB/steam-rom-manager/native/store-launcher/internal/cli"
-	"github.com/SteamGridDB/steam-rom-manager/native/store-launcher/internal/epic"
 	"github.com/SteamGridDB/steam-rom-manager/native/store-launcher/internal/logging"
 	processes "github.com/SteamGridDB/steam-rom-manager/native/store-launcher/internal/process"
+	"github.com/SteamGridDB/steam-rom-manager/native/store-launcher/internal/storeuri"
 )
 
 const (
@@ -18,8 +18,8 @@ const (
 	ExitInternalError    = 8
 )
 
-type URILauncher interface {
-	Open(uri string) error
+type Launcher interface {
+	Launch(cli.Options) (uint32, error)
 }
 
 type Clock interface {
@@ -46,11 +46,11 @@ func (e *ExitError) Error() string {
 	return e.Err.Error()
 }
 
-func Run(options cli.Options, source processes.Source, launcher URILauncher, logger *logging.Logger) error {
+func Run(options cli.Options, source processes.Source, launcher Launcher, logger *logging.Logger) error {
 	return RunWithClock(options, source, launcher, logger, systemClock{})
 }
 
-func RunWithClock(options cli.Options, source processes.Source, launcher URILauncher, logger *logging.Logger, clock Clock) error {
+func RunWithClock(options cli.Options, source processes.Source, launcher Launcher, logger *logging.Logger, clock Clock) error {
 	baseline, err := source.Snapshot()
 	if err != nil {
 		return internalError("capture pre-launch process baseline", err)
@@ -58,16 +58,17 @@ func RunWithClock(options cli.Options, source processes.Source, launcher URILaun
 	launchTime := clock.Now()
 	logger.Printf("baseline captured processes=%d timestamp=%s", len(baseline), launchTime.Format(time.RFC3339Nano))
 	logger.Printf(
-		"arguments uri=%q exe=%q installDir=%q process=%q startTimeout=%s pollInterval=%s handoffGrace=%s allowExisting=%t",
-		epic.SanitizedURI(options.URI), options.ExpectedExecutable, options.InstallDirectory,
+		"arguments store=%q uri=%q launchExe=%q launchArgCount=%d launchCwd=%q aumid=%q exe=%q installDir=%q process=%q startTimeout=%s pollInterval=%s handoffGrace=%s allowExisting=%t",
+		options.Store, sanitizedURI(options.URI), options.LaunchExecutable, len(options.LaunchArguments), options.LaunchDirectory, options.AppUserModelID, options.ExpectedExecutable, options.InstallDirectory,
 		options.ProcessOverride, options.StartTimeout, options.PollInterval, options.HandoffGrace,
 		options.AllowExistingMatch,
 	)
-	if err := launcher.Open(options.URI); err != nil {
-		logger.Printf("Epic URI activation failed: %v", err)
+	activatedPID, err := launcher.Launch(options)
+	if err != nil {
+		logger.Printf("store activation failed store=%q: %v", options.Store, err)
 		return &ExitError{Code: ExitActivationFailed, Err: err}
 	}
-	logger.Printf("Epic URI activation succeeded")
+	logger.Printf("store activation succeeded store=%q", options.Store)
 
 	detector := NewDetector(
 		options.ExpectedExecutable,
@@ -84,6 +85,11 @@ func RunWithClock(options cli.Options, source processes.Source, launcher URILaun
 		snapshot, err = source.Snapshot()
 		if err != nil {
 			return internalError("capture process snapshot during discovery", err)
+		}
+		if match, found := activatedProcess(snapshot, activatedPID); found {
+			selected = match
+			logger.Printf("selected activated pid=%d name=%q executable=%q", match.Process.PID, match.Process.Name, match.Process.Executable)
+			break
 		}
 		if match, found := detector.Select(snapshot, options.AllowExistingMatch); found {
 			selected = match
@@ -130,6 +136,25 @@ func RunWithClock(options cli.Options, source processes.Source, launcher URILaun
 			return nil
 		}
 	}
+}
+
+func activatedProcess(snapshot []processes.Info, pid uint32) (Match, bool) {
+	if pid == 0 {
+		return Match{}, false
+	}
+	for _, process := range snapshot {
+		if process.PID == pid && process.CreationTime != 0 {
+			return Match{Process: process, Reason: "Windows app activation process ID"}, true
+		}
+	}
+	return Match{}, false
+}
+
+func sanitizedURI(uri string) string {
+	if uri == "" {
+		return ""
+	}
+	return storeuri.Sanitized(uri)
 }
 
 func internalError(operation string, err error) error {
