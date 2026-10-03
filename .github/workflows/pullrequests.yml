@@ -13,10 +13,7 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macOS-latest]
+    runs-on: windows-2022
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4.1.6
@@ -33,7 +30,6 @@ jobs:
           check-latest: true
 
       - name: Setup Go environment
-        if: ${{ matrix.os == 'windows-latest' }}
         uses: actions/setup-go@v5
         with:
           go-version-file: native/store-launcher/go.mod
@@ -50,39 +46,15 @@ jobs:
           yarn run presets:validate
           yarn run build:dist
 
-      - name: Build Linux
-        if: ${{ matrix.os == 'ubuntu-latest' }}
-        run: yarn run build:linux --publish=never
-
-      - name: Build Windows
-        if: ${{ matrix.os == 'windows-latest' }}
-        run: yarn run build:win --publish=never
-
-      - name: Build Mac
-        if: ${{ matrix.os == 'macOS-latest' }}
-        run: yarn run build:mac --publish=never
+      - name: Build Windows x64
+        run: |
+          node native/store-launcher/build.js x64
+          yarn electron-builder --win --x64 --publish=never
 
       - name: Upload Artifacts Windows
         uses: actions/upload-artifact@v4.3.3
-        if: ${{ matrix.os == 'windows-latest' }}
         with:
           name: srm-build-windows
           path: |
             release/*.exe
             release/*.msi
-      - name: Upload Artifacts Linux
-        uses: actions/upload-artifact@v4.3.3
-        if: ${{ matrix.os == 'ubuntu-latest' }}
-        with:
-          name: srm-build-linux
-          path: |
-            release/*.deb
-            release/*.AppImage
-      - name: Upload Artifacts Mac
-        uses: actions/upload-artifact@v4.3.3
-        if: ${{ matrix.os == 'macOS-latest' }}
-        with:
-          name: srm-build-mac
-          path: |
-            release/*.dmg
-            release/*.zip

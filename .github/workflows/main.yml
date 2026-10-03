@@ -11,10 +11,10 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-2022, macOS-latest]
+    runs-on: windows-2022
+    # Forks without a deployment token should still build and upload CI artifacts.
+    env:
+      PUBLISH_MODE: ${{ secrets.DEPLOY_TOKEN != '' && 'onTagOrDraft' || 'never' }}
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4.1.6
@@ -31,7 +31,6 @@ jobs:
           check-latest: true
 
       - name: Setup Go environment
-        if: ${{ matrix.os == 'windows-2022' }}
         uses: actions/setup-go@v5
         with:
           go-version-file: native/store-launcher/go.mod
@@ -49,41 +48,17 @@ jobs:
           yarn run build:dist
         env:
           SENTRY_AUTH: ${{ secrets.SENTRY_AUTH }}
-      - name: Build Linux
-        if: ${{ matrix.os == 'ubuntu-latest' }}
-        run: yarn run build:linux --publish=onTagOrDraft
-        env:
-          GH_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
-      - name: Build Windows
-        if: ${{ matrix.os == 'windows-2022' }}
-        run: yarn run build:win --publish=onTagOrDraft
+      - name: Build Windows x64
+        run: |
+          node native/store-launcher/build.js x64
+          yarn electron-builder --win --x64 --publish=${{ env.PUBLISH_MODE }}
         env:
           GH_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
 
-      - name: Build Mac
-        if: ${{ matrix.os == 'macOS-latest' }}
-        run: yarn run build:mac --publish=onTagOrDraft
-        env:
-          GH_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
       - name: Upload Artifacts Windows
         uses: actions/upload-artifact@v4.3.3
-        if: ${{ matrix.os == 'windows-2022' }}
         with:
           name: srm-build-windows
           path: |
             release/*.exe
             release/*.msi
-      - name: Upload Artifacts Mac
-        uses: actions/upload-artifact@v4.3.3
-        if: ${{ matrix.os == 'macOS-latest' }}
-        with:
-          name: srm-build-mac
-          path: release/*.dmg
-      - name: Upload Artifacts Linux
-        uses: actions/upload-artifact@v4.3.3
-        if: ${{ matrix.os == 'ubuntu-latest' }}
-        with:
-          name: srm-build-linux
-          path: |
-            release/*.deb
-            release/*.AppImage
