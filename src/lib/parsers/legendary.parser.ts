@@ -4,6 +4,7 @@ import { APP } from "../../variables";
 import * as fs from "fs-extra";
 import * as os from "os";
 import * as path from "path";
+import { logImporterEvent } from "../helpers/importer-diagnostics";
 
 export class LegendaryParser implements GenericParser {
   private get lang() {
@@ -62,11 +63,13 @@ export class LegendaryParser implements GenericParser {
         legendaryExePath = execSync("which legendary", { encoding: "utf-8" });
       }
       if (!fs.existsSync(legendaryInstalledFile) || !legendaryExePath) {
+        logImporterEvent("legendary.source.missing", { installedFile: legendaryInstalledFile, installedFileExists: fs.existsSync(legendaryInstalledFile), launcherExecutable: legendaryExePath }, "error");
         return reject(this.lang.errors.legendaryNotInstalled);
       }
       let installed = JSON.parse(
         fs.readFileSync(legendaryInstalledFile, "utf-8"),
       );
+      logImporterEvent("legendary.source", { installedFile: legendaryInstalledFile, launcherExecutable: legendaryExePath, launcherOverride: !!inputs.legendaryExeOverride, launcherMode: !!inputs.legendaryLauncherMode, records: Object.keys(installed).length });
       let parsedData: ParsedData = {
         executableLocation: legendaryExePath,
         success: [],

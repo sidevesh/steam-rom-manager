@@ -5,6 +5,7 @@ import * as fs from "fs-extra";
 import * as os from "os";
 import * as path from "path";
 import { glob } from "glob";
+import { logImporterEvent } from "../helpers/importer-diagnostics";
 
 export function resolveGithubLauncherGameDir(
   githubLauncherDir: string,
@@ -67,11 +68,13 @@ export class GithubLauncherParser implements GenericParser {
       }
       let settingsConfigPath = path.join(inputs.githubLauncherDir, "settings.json");
       let appsConfigPath = path.join(inputs.githubLauncherDir, "apps.json");
+      logImporterEvent("github-launcher.source", { directory: inputs.githubLauncherDir, settingsConfigPath, appsConfigPath, settingsExists: fs.existsSync(settingsConfigPath), appsExists: fs.existsSync(appsConfigPath) });
       try {
         let settings = fs.readJsonSync(settingsConfigPath);
         let apps = fs.readJsonSync(appsConfigPath);
         let gamesDir = settings?.AppsPath;
         let gamesList: any[] = apps.apps;
+        logImporterEvent("github-launcher.apps", { count: gamesList.length, appsPath: gamesDir });
         for(let game of gamesList) {
           let gameDir = resolveGithubLauncherGameDir(
             inputs.githubLauncherDir,
@@ -85,6 +88,7 @@ export class GithubLauncherParser implements GenericParser {
             fs.existsSync(gameDir)
           ) {
             const exeFileNames = await glob("*.exe", { dot: true, cwd: gameDir, nocase: true })
+            logImporterEvent("github-launcher.game.candidates", { title: game.name, directory: gameDir, executables: exeFileNames });
             if(!exeFileNames.length) {
               parsedData.failed.push(`Game folder ${gameDir} has no executable file`)
             } else {

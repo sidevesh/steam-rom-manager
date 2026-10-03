@@ -9,6 +9,7 @@ import { XMLParser, XMLValidator } from "fast-xml-parser";
 import languageEncoding from "detect-file-encoding-and-language";
 import * as paths from "../../paths";
 import { quoteWindowsArgument } from "../helpers/windows-arguments";
+import { logImporterEvent } from "../helpers/importer-diagnostics";
 
 export class EADesktopParser implements GenericParser {
   private get lang() {
@@ -52,6 +53,7 @@ export class EADesktopParser implements GenericParser {
           "*/__Installer/installerdata.xml",
           { dot: true, cwd: eaInstallDir, absolute: true },
         );
+        logImporterEvent("ea.manifests", { directory: eaInstallDir, override: !!inputs.eaGamesDir, count: installDataFiles.length, launcherMode: !!inputs.eaLauncherMode });
         let finalData: ParsedData = {
           executableLocation: paths.storeLauncherHelper,
           success: [],
@@ -75,8 +77,10 @@ export class EADesktopParser implements GenericParser {
           } else if (fileInfo.encoding == "UTF-16LE") {
             xmlString = xmlBuffer.toString("utf16le");
           } else {
+            logImporterEvent("ea.manifest.encoding.unsupported", { manifest: installDataFile, encoding: fileInfo.encoding }, "error");
             return reject(`Unrecognized file encoding for ${installDataFile}.`);
           }
+          logImporterEvent("ea.manifest.read", { manifest: installDataFile, encoding: fileInfo.encoding, bytes: xmlBuffer.length });
 
           if (XMLValidator.validate(xmlString, {})) {
             let parsedData = xmlParser.parse(xmlString);
@@ -234,6 +238,7 @@ export class EADesktopParser implements GenericParser {
                 ),
                 fileLaunchOptions: commandArgs,
               });
+              logImporterEvent("ea.manifest.game", { manifest: installDataFile, title, offerId: appID, installDirectory: gameDir, expectedExecutable: path.join(gameDir, runtimePath.replace(/^\[.*?\]/, "")) });
             } else {
               finalData.failed.push(
                 `Game with title ${title} failed. AppID: ${appID}, runtimePath: ${runtimePath}`,

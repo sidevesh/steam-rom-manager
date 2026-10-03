@@ -9,6 +9,7 @@ import {
   OculusManifest,
   parseOculusManifest,
 } from "../helpers/oculus-manifest";
+import { logImporterEvent } from "../helpers/importer-diagnostics";
 
 const OCULUS_LIBRARIES_KEY = "\\Software\\Oculus VR, LLC\\Oculus\\Libraries";
 
@@ -49,6 +50,7 @@ export class OculusParser implements GenericParser {
         const libraryPaths = configuredLibrary
           ? this.driveLetterLibraryPaths([configuredLibrary])
           : await this.getOculusLibraryPaths();
+        logImporterEvent("oculus.libraries", { override: !!configuredLibrary, paths: libraryPaths, count: libraryPaths.length });
 
         const parsedData: ParsedData = { success: [], failed: [] };
         const seenApps = new Set<string>();
@@ -58,6 +60,7 @@ export class OculusParser implements GenericParser {
         }
 
         if (!libraryPaths.length) {
+          logImporterEvent("oculus.libraries.missing", {}, "error");
           return reject(this.lang.errors.oculusNotInstalled);
         }
 
@@ -75,6 +78,7 @@ export class OculusParser implements GenericParser {
   ) {
     const manifestsDir = path.win32.join(libraryPath, "Manifests");
     if (!fs.existsSync(manifestsDir)) {
+      logImporterEvent("oculus.library.manifests.missing", { libraryPath, manifestsDir }, "warn");
       parsedData.failed.push(
         `Oculus library has no Manifests directory: ${libraryPath}`,
       );
@@ -94,11 +98,13 @@ export class OculusParser implements GenericParser {
         (left, right) =>
           Number(left.endsWith(".mini")) - Number(right.endsWith(".mini")),
       );
+    logImporterEvent("oculus.library.manifests", { libraryPath, manifestsDir, count: manifestFiles.length });
     const seenManifestFiles = new Set<string>();
 
     for (const filename of manifestFiles) {
       const manifestKey = filename.replace(/\.mini$/, "").toLowerCase();
       if (seenManifestFiles.has(manifestKey)) {
+        logImporterEvent("oculus.manifest.duplicateCopy", { manifest: filename, libraryPath });
         continue;
       }
       const manifestPath = path.win32.join(manifestsDir, filename);
@@ -109,16 +115,20 @@ export class OculusParser implements GenericParser {
         seenManifestFiles.add(manifestKey);
         const parsedGame = parseOculusManifest(libraryPath, manifest);
         if (!parsedGame) {
+          logImporterEvent("oculus.manifest.skipped", { manifest: filename, libraryPath, appId: manifest.appId, canonicalName: manifest.canonicalName, launchFile: manifest.launchFile, isCore: !!manifest.isCore, thirdParty: !!manifest.thirdParty, packageType: manifest.packageType }, "warn");
           continue;
         }
 
         const appKey = String(manifest.appId);
         if (seenApps.has(appKey)) {
+          logImporterEvent("oculus.game.duplicate", { appId: appKey, manifest: filename, libraryPath });
           continue;
         }
         seenApps.add(appKey);
         parsedData.success.push(parsedGame);
+        logImporterEvent("oculus.game.discovered", { appId: appKey, title: parsedGame.extractedTitle, executable: parsedGame.filePath, startIn: parsedGame.startInDirectory, manifest: filename, libraryPath });
       } catch (err) {
+        logImporterEvent("oculus.manifest.failed", { manifest: manifestPath, error: String(err) }, "error");
         parsedData.failed.push(
           `Could not parse Oculus manifest ${manifestPath}: ${err}`,
         );
@@ -181,6 +191,7 @@ export class OculusParser implements GenericParser {
         this.getRegistryLibraryPaths("x86"),
       ])
     ).flat();
+    logImporterEvent("oculus.registry.libraryCandidates", { paths: candidates, count: candidates.length });
 
     return this.driveLetterLibraryPaths(candidates).filter((candidate) =>
       fs.existsSync(path.win32.join(candidate, "Manifests")),
@@ -197,8 +208,10 @@ export class OculusParser implements GenericParser {
 
       librariesKey.keys((keysError, keys) => {
         if (keysError || !keys) {
+          logImporterEvent("oculus.registry.keys.unavailable", { architecture: arch, error: keysError ? String(keysError) : "No keys" }, "warn");
           return resolve([]);
         }
+        logImporterEvent("oculus.registry.keys", { architecture: arch, count: keys.length });
 
         Promise.all(
           keys.map(
@@ -206,6 +219,7 @@ export class OculusParser implements GenericParser {
               new Promise<string[]>((resolveKey) => {
                 key.values((valuesError, values) => {
                   if (valuesError || !values) {
+                    logImporterEvent("oculus.registry.library.unavailable", { architecture: arch, key: key.key, error: valuesError ? String(valuesError) : "No values" }, "warn");
                     return resolveKey([]);
                   }
                   const valueMap = Object.fromEntries(

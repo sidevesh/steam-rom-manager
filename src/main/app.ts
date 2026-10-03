@@ -19,6 +19,7 @@ import { hideBin } from "yargs/helpers";
 import { UserConfiguration } from "../models";
 import { deployStoreLauncherHelper } from "./store-launcher-helper";
 import { refreshStoreAgentTaskIfInstalled } from "../lib/helpers/store-agent-task";
+import { logImporterEvent } from "../lib/helpers/importer-diagnostics";
 
 // Crash Reporting
 crashReporter.start({
@@ -248,11 +249,13 @@ autoUpdater.on("update-downloaded", (info) => {
 
 // Main Listeners
 app.on("ready", () => {
+  logImporterEvent("app.ready", { version: app.getVersion(), packaged: app.isPackaged, architecture: process.arch, platform: process.platform });
   try {
     deployStoreLauncherHelper();
     refreshStoreAgentTaskIfInstalled();
   } catch (error) {
     log.error("Failed to deploy the store launcher helper", error);
+    logImporterEvent("helper.deploy.failed", { error: String(error) }, "error");
   }
   // Registered for both CLI and GUI modes. Fetches a Steam account's owned
   // games via the Steam Web API in the main process using Electron's net

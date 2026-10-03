@@ -27,18 +27,26 @@ func run() (exitCode int) {
 	options, err := cli.Parse(os.Args[1:])
 	logger := logging.New(options.LogFile)
 	defer logger.Close()
-	logger.Printf("starting version=%s os=%s architecture=%s", version, runtime.GOOS, runtime.GOARCH)
+	logger.Printf("starting version=%s os=%s architecture=%s pid=%d", version, runtime.GOOS, runtime.GOARCH, os.Getpid())
 	defer func() {
 		if recovered := recover(); recovered != nil {
 			logger.Printf("unexpected panic: %v", recovered)
 			exitCode = session.ExitInternalError
 		}
+		logger.Printf("process exit pid=%d code=%d", os.Getpid(), exitCode)
 	}()
+	stopObserving, observeError := observeCloseRequests(logger)
+	if observeError != nil {
+		logger.Printf("close-request observer unavailable: %v", observeError)
+	} else {
+		defer stopObserving()
+	}
 	if err != nil {
 		logger.Printf("invalid arguments: %v", err)
 		return session.ExitInvalidArguments
 	}
 	source := processes.WindowsSource{}
+	logProcessIdentity(source, logger)
 	if options.UseAgent {
 		if err := recovery.AgentReady(); err != nil {
 			logger.Printf("agent required but unavailable: %v", err)
