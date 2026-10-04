@@ -70,13 +70,13 @@ func (d *Detector) Select(snapshot []processes.Info, allowExisting bool) (Match,
 	}
 	if d.processOverride != "" {
 		for _, process := range eligible {
-			if strings.EqualFold(process.Name, d.processOverride) {
+			if strings.EqualFold(process.Name, d.processOverride) && d.matchesKnownGameLocation(process) {
 				return Match{Process: process, Reason: "process override"}, true
 			}
 		}
 	}
 	for _, process := range eligible {
-		if strings.EqualFold(process.Name, d.expectedName) {
+		if strings.EqualFold(process.Name, d.expectedName) && d.matchesKnownGameLocation(process) {
 			return Match{Process: process, Reason: "expected process name"}, true
 		}
 	}
@@ -103,8 +103,9 @@ func (d *Detector) IsNewExactMatch(process processes.Info) bool {
 		return false
 	}
 	return d.matchesExecutable(process) ||
-		d.processOverride != "" && strings.EqualFold(process.Name, d.processOverride) ||
-		strings.EqualFold(process.Name, d.expectedName)
+		d.matchesKnownGameLocation(process) &&
+			(d.processOverride != "" && strings.EqualFold(process.Name, d.processOverride) ||
+				strings.EqualFold(process.Name, d.expectedName))
 }
 
 func (d *Detector) TimeoutCandidates(snapshot []processes.Info, limit int) []processes.Info {
@@ -149,6 +150,11 @@ func (d *Detector) isEligible(process processes.Info, allowExisting bool) bool {
 
 func (d *Detector) matchesExecutable(process processes.Info) bool {
 	return process.Executable != "" && normalizeWindowsPath(process.Executable) == d.expectedExecutable
+}
+
+func (d *Detector) matchesKnownGameLocation(process processes.Info) bool {
+	return process.Executable == "" || d.installDirectory == "" ||
+		d.matchesExecutable(process) || d.isUnderInstallDirectory(process.Executable)
 }
 
 func (d *Detector) isUnderInstallDirectory(executable string) bool {

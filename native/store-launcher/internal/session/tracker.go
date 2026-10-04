@@ -53,13 +53,20 @@ func (t *Tracker) Update(snapshot []processes.Info, detector *Detector) []string
 	}
 
 	for {
-		trackedPIDs := make(map[uint32]bool, len(t.tracked))
+		trackedPIDs := make(map[uint32]processes.Info, len(t.tracked))
 		for _, tracked := range t.tracked {
-			trackedPIDs[tracked.PID] = true
+			trackedPIDs[tracked.PID] = tracked
 		}
 		added := false
 		for _, process := range snapshot {
-			if trackedPIDs[process.ParentPID] && t.Add(process) {
+			parent, parentTracked := trackedPIDs[process.ParentPID]
+			if !parentTracked || process.CreationTime == 0 || process.CreationTime < parent.CreationTime {
+				continue
+			}
+			if detector.installDirectory != "" && !detector.matchesExecutable(process) && !detector.isUnderInstallDirectory(process.Executable) {
+				continue
+			}
+			if t.Add(process) {
 				events = append(events, fmt.Sprintf("added descendant pid=%d parent=%d name=%q", process.PID, process.ParentPID, process.Name))
 				added = true
 			}
