@@ -147,6 +147,9 @@
       "Linux": "/path/to/your/manifests/"
     },
     "launcherModeInputTitle": "Launch games via Epic for online services",
+    "preSyncWaitInputTitle": "Wait for existing Epic cloud sync (for example 15s)",
+    "postSyncWaitInputTitle": "Wait for post-game Epic cloud sync (for example 15s)",
+    "exitGraceInputTitle": "Wait for normal Epic exit before forcing it (for example 5s)",
     "errors": {
       "invalidManifestsOverride": "> Manifests Override is not a valid directory.",
       "epicNotCompatible": "> Epic Games Store not available on Linux.\n If you are using the Legendary store on Linux you need to set Manifests Override.",

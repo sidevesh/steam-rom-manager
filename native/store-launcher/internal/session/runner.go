@@ -22,6 +22,11 @@ type Launcher interface {
 	Launch(cli.Options) (uint32, error)
 }
 
+type Hooks struct {
+	BeforeLaunch func() error
+	AfterGame    func(time.Time) error
+}
+
 type Clock interface {
 	Now() time.Time
 	Sleep(time.Duration)
@@ -51,6 +56,15 @@ func Run(options cli.Options, source processes.Source, launcher Launcher, logger
 }
 
 func RunWithClock(options cli.Options, source processes.Source, launcher Launcher, logger *logging.Logger, clock Clock) error {
+	return RunWithHooks(options, source, launcher, logger, clock, Hooks{})
+}
+
+func RunWithHooks(options cli.Options, source processes.Source, launcher Launcher, logger *logging.Logger, clock Clock, hooks Hooks) error {
+	if hooks.BeforeLaunch != nil {
+		if err := hooks.BeforeLaunch(); err != nil {
+			return internalError("prepare store launcher", err)
+		}
+	}
 	baseline, err := source.Snapshot()
 	if err != nil {
 		return internalError("capture pre-launch process baseline", err)
@@ -68,7 +82,16 @@ func RunWithClock(options cli.Options, source processes.Source, launcher Launche
 		logger.Printf("store activation failed store=%q: %v", options.Store, err)
 		return &ExitError{Code: ExitActivationFailed, Err: err}
 	}
-	logger.Printf("store activation succeeded store=%q", options.Store)
+	logger.Printf("store activation succeeded store=%q activatedPID=%d", options.Store, activatedPID)
+	completed := false
+	defer func() {
+		if !completed && hooks.AfterGame != nil {
+			logger.Printf("game session ended without a tracked game; cleaning up Epic launcher")
+			if err := hooks.AfterGame(clock.Now()); err != nil {
+				logger.Printf("Epic cleanup after session error failed: %v", err)
+			}
+		}
+	}()
 
 	detector := NewDetector(
 		options.ExpectedExecutable,
@@ -133,6 +156,12 @@ func RunWithClock(options cli.Options, source processes.Source, launcher Launche
 		}
 		if clock.Now().Sub(emptySince) >= options.HandoffGrace {
 			logger.Printf("game session completed; handoff grace expired")
+			if hooks.AfterGame != nil {
+				completed = true
+				if err := hooks.AfterGame(emptySince); err != nil {
+					return internalError("finish store launcher", err)
+				}
+			}
 			return nil
 		}
 	}

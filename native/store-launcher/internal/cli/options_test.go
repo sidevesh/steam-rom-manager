@@ -17,6 +17,20 @@ func TestParseDefaultsExistingShortcutsToEpic(t *testing.T) {
 	if options.Store != storeuri.Epic {
 		t.Fatalf("Store = %q, want %q", options.Store, storeuri.Epic)
 	}
+	if options.EpicPreSyncWait.Seconds() != 15 || options.EpicPostSyncWait.Seconds() != 15 || options.EpicExitGrace.Seconds() != 5 {
+		t.Fatalf("unexpected Epic lifecycle defaults: %+v", options)
+	}
+}
+
+func TestParseEpicWaitOverrides(t *testing.T) {
+	options, err := Parse([]string{
+		"--uri", "com.epicgames.launcher://apps/Foo?action=launch",
+		"--exe", `C:\Games\Foo\Foo.exe`,
+		"--epic-pre-sync-wait", "30s", "--epic-post-sync-wait", "1m", "--epic-exit-grace", "0s",
+	})
+	if err != nil || options.EpicPreSyncWait.Seconds() != 30 || options.EpicPostSyncWait.Minutes() != 1 || options.EpicExitGrace != 0 {
+		t.Fatalf("Epic lifecycle overrides: options=%+v err=%v", options, err)
+	}
 }
 
 func TestParseAcceptsEAAndUbisoft(t *testing.T) {

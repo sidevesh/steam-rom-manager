@@ -24,6 +24,10 @@ type Options struct {
 	StartTimeout       time.Duration
 	PollInterval       time.Duration
 	HandoffGrace       time.Duration
+	EpicPreSyncWait    time.Duration
+	EpicPostSyncWait   time.Duration
+	EpicExitGrace      time.Duration
+	EpicLogFile        string
 	LogFile            string
 	AllowExistingMatch bool
 }
@@ -38,10 +42,13 @@ func (a *argumentList) Set(value string) error {
 
 func Parse(args []string) (Options, error) {
 	options := Options{
-		Store:        storeuri.Epic,
-		StartTimeout: 60 * time.Second,
-		PollInterval: 500 * time.Millisecond,
-		HandoffGrace: 5 * time.Second,
+		Store:            storeuri.Epic,
+		StartTimeout:     60 * time.Second,
+		PollInterval:     500 * time.Millisecond,
+		HandoffGrace:     5 * time.Second,
+		EpicPreSyncWait:  15 * time.Second,
+		EpicPostSyncWait: 15 * time.Second,
+		EpicExitGrace:    5 * time.Second,
 	}
 
 	flags := flag.NewFlagSet("srm-store-launcher", flag.ContinueOnError)
@@ -59,6 +66,10 @@ func Parse(args []string) (Options, error) {
 	flags.DurationVar(&options.StartTimeout, "start-timeout", options.StartTimeout, "process discovery timeout")
 	flags.DurationVar(&options.PollInterval, "poll-interval", options.PollInterval, "process polling interval")
 	flags.DurationVar(&options.HandoffGrace, "handoff-grace", options.HandoffGrace, "process handoff grace period")
+	flags.DurationVar(&options.EpicPreSyncWait, "epic-pre-sync-wait", options.EpicPreSyncWait, "maximum wait for ongoing Epic cloud sync before closing an existing launcher")
+	flags.DurationVar(&options.EpicPostSyncWait, "epic-post-sync-wait", options.EpicPostSyncWait, "maximum wait for post-game Epic cloud sync before closing the launcher")
+	flags.DurationVar(&options.EpicExitGrace, "epic-exit-grace", options.EpicExitGrace, "wait after a normal Epic close request before forcing exit")
+	flags.StringVar(&options.EpicLogFile, "epic-log-file", "", "Epic Games Launcher log override")
 	flags.StringVar(&options.LogFile, "log-file", "", "diagnostic log path")
 	flags.BoolVar(&options.AllowExistingMatch, "allow-existing-match", false, "allow attaching to a matching process that already exists")
 	if err := flags.Parse(args); err != nil {
@@ -119,6 +130,9 @@ func Parse(args []string) (Options, error) {
 	}
 	if options.StartTimeout <= 0 || options.PollInterval <= 0 || options.HandoffGrace <= 0 {
 		return options, fmt.Errorf("timeouts, polling interval, and handoff grace must be positive")
+	}
+	if options.EpicPreSyncWait < 0 || options.EpicPostSyncWait < 0 || options.EpicExitGrace < 0 {
+		return options, fmt.Errorf("Epic waits and exit grace must be nonnegative")
 	}
 	return options, nil
 }

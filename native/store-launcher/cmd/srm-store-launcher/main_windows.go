@@ -5,11 +5,14 @@ package main
 import (
 	"os"
 	"runtime"
+	"time"
 
 	"github.com/SteamGridDB/steam-rom-manager/native/store-launcher/internal/cli"
+	"github.com/SteamGridDB/steam-rom-manager/native/store-launcher/internal/epic"
 	"github.com/SteamGridDB/steam-rom-manager/native/store-launcher/internal/logging"
 	processes "github.com/SteamGridDB/steam-rom-manager/native/store-launcher/internal/process"
 	"github.com/SteamGridDB/steam-rom-manager/native/store-launcher/internal/session"
+	"github.com/SteamGridDB/steam-rom-manager/native/store-launcher/internal/storeuri"
 	"github.com/SteamGridDB/steam-rom-manager/native/store-launcher/internal/win32"
 )
 
@@ -34,7 +37,15 @@ func run() (exitCode int) {
 		logger.Printf("invalid arguments: %v", err)
 		return session.ExitInvalidArguments
 	}
-	if err := session.Run(options, processes.WindowsSource{}, win32.ShellLauncher{}, logger); err != nil {
+	source := processes.WindowsSource{}
+	hooks := session.Hooks{}
+	if options.Store == storeuri.Epic {
+		controller := epic.NewController(options, source, win32.EpicCloser{Source: source}, logger)
+		hooks.BeforeLaunch = controller.BeforeLaunch
+		hooks.AfterGame = controller.AfterGame
+		logger.Printf("epic lifecycle enabled preSyncWait=%s postSyncWait=%s exitGrace=%s", options.EpicPreSyncWait, options.EpicPostSyncWait, options.EpicExitGrace)
+	}
+	if err := session.RunWithHooks(options, source, win32.ShellLauncher{}, logger, realClock{}, hooks); err != nil {
 		if exitError, ok := err.(*session.ExitError); ok {
 			logger.Printf("exiting code=%d reason=%v", exitError.Code, exitError.Err)
 			return exitError.Code
@@ -45,3 +56,8 @@ func run() (exitCode int) {
 	logger.Printf("exiting code=%d", session.ExitSuccess)
 	return session.ExitSuccess
 }
+
+type realClock struct{}
+
+func (realClock) Now() time.Time               { return time.Now() }
+func (realClock) Sleep(duration time.Duration) { time.Sleep(duration) }

@@ -29,6 +29,27 @@ export class EpicParser implements GenericParser {
           hidden: os.type() !== "Windows_NT",
           info: this.lang.docs__md.input.join(""),
         },
+        epicPreSyncWait: {
+          label: this.lang.preSyncWaitInputTitle || "Wait for existing Epic cloud sync",
+          inputType: "text",
+          initialValue: "15s",
+          hidden: os.type() !== "Windows_NT",
+          validationFn: validateEpicWait,
+        },
+        epicPostSyncWait: {
+          label: this.lang.postSyncWaitInputTitle || "Wait for post-game Epic cloud sync",
+          inputType: "text",
+          initialValue: "15s",
+          hidden: os.type() !== "Windows_NT",
+          validationFn: validateEpicWait,
+        },
+        epicExitGrace: {
+          label: this.lang.exitGraceInputTitle || "Normal Epic exit grace",
+          inputType: "text",
+          initialValue: "5s",
+          hidden: os.type() !== "Windows_NT",
+          validationFn: validateEpicWait,
+        },
       },
     };
   }
@@ -82,6 +103,13 @@ export class EpicParser implements GenericParser {
             ) {
               appTitles.push(item.DisplayName);
               const epicUri = `com.epicgames.launcher://apps/${item.AppName}?action=launch&silent=true`;
+              const epicWaits = [
+                ["--epic-pre-sync-wait", inputs.epicPreSyncWait],
+                ["--epic-post-sync-wait", inputs.epicPostSyncWait],
+                ["--epic-exit-grace", inputs.epicExitGrace],
+              ]
+                .filter(([, value]) => value !== undefined && value !== "")
+                .map(([flag, value]) => `${flag} ${quoteWindowsArgument(String(value))}`);
               parsedData.success.push({
                 extractedTitle: item.DisplayName,
                 extractedAppId: item.AppName,
@@ -94,6 +122,7 @@ export class EpicParser implements GenericParser {
                   quoteWindowsArgument(launchPath),
                   "--install-dir",
                   quoteWindowsArgument(item.InstallLocation),
+                  ...epicWaits,
                 ].join(" "),
                 filePath: launchPath,
                 fileLaunchOptions: item.LaunchCommand,
@@ -107,4 +136,11 @@ export class EpicParser implements GenericParser {
       }
     });
   }
+}
+
+function validateEpicWait(value: any): null | string {
+  if (value === undefined || value === "" || /^\d+(ms|s|m|h)$/.test(String(value))) {
+    return null;
+  }
+  return "Use a duration such as 0s, 15s, or 1m.";
 }

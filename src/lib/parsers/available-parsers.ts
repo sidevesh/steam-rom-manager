@@ -51,6 +51,9 @@ export const availableParserInputsInfo: Record<
   Epic: {
     epicManifests: { inputType: "dir" },
     epicLauncherMode: { inputType: "toggle" },
+    epicPreSyncWait: { inputType: "text" },
+    epicPostSyncWait: { inputType: "text" },
+    epicExitGrace: { inputType: "text" },
   },
   Legendary: {
     legendaryExeOverride: { inputType: "path" },
