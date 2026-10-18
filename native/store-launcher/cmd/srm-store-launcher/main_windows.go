@@ -52,6 +52,7 @@ func run() (exitCode int) {
 			logger.Printf("agent required but unavailable: %v", err)
 			return session.ExitInternalError
 		}
+		logger.Printf("agent heartbeat verified pid=%d", os.Getpid())
 	}
 	hooks := session.Hooks{}
 	if options.UseAgent {
@@ -72,7 +73,7 @@ func run() (exitCode int) {
 				Helper: helper, Game: game, Options: options, RegisteredAt: time.Now(),
 			})
 			if err == nil {
-				logger.Printf("agent session registered path=%q helperPID=%d gamePID=%d", recordPath, helper.PID, game.PID)
+				logger.Printf("agent session registered path=%q helperPID=%d helperCreated=%d gamePID=%d gameCreated=%d", recordPath, helper.PID, helper.CreationTime, game.PID, game.CreationTime)
 			}
 			return err
 		}

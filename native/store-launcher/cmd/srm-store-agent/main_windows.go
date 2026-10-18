@@ -71,6 +71,7 @@ func recoverSession(path string, snapshot []processes.Info, source processes.Sou
 	if hasIdentity(snapshot, record.Helper) {
 		return
 	}
+	logger.Printf("agent helper missing path=%q helperPID=%d helperCreated=%d gamePID=%d gameCreated=%d age=%s", path, record.Helper.PID, record.Helper.CreationTime, record.Game.PID, record.Game.CreationTime, time.Since(record.RegisteredAt).Round(time.Second))
 	if strings.HasSuffix(path, ".json") {
 		claimed := strings.TrimSuffix(path, ".json") + ".recovering"
 		if err := os.Rename(path, claimed); err != nil {
@@ -83,8 +84,10 @@ func recoverSession(path string, snapshot []processes.Info, source processes.Sou
 	}
 	logger.Printf("agent recovery started helperPID=%d helperCreated=%d gamePID=%d gameCreated=%d store=%q", record.Helper.PID, record.Helper.CreationTime, record.Game.PID, record.Game.CreationTime, record.Options.Store)
 	if hasIdentity(snapshot, record.Game) {
+		logger.Printf("agent game close requested pid=%d name=%q grace=%s", record.Game.PID, record.Game.Name, 5*time.Second)
+		closeStarted := time.Now()
 		forced, err := (win32.GameCloser{Source: source}).CloseGame(record.Game, 5*time.Second, record.Options.PollInterval)
-		logger.Printf("agent game close pid=%d forced=%t error=%v", record.Game.PID, forced, err)
+		logger.Printf("agent game close pid=%d forced=%t elapsed=%s error=%v", record.Game.PID, forced, time.Since(closeStarted).Round(time.Millisecond), err)
 		if err != nil {
 			return
 		}
@@ -92,11 +95,14 @@ func recoverSession(path string, snapshot []processes.Info, source processes.Sou
 		logger.Printf("agent game already gone pid=%d", record.Game.PID)
 	}
 	if record.Options.Store == storeuri.Epic {
+		logger.Printf("agent Epic cleanup started postSyncWait=%s exitGrace=%s", record.Options.EpicPostSyncWait, record.Options.EpicExitGrace)
+		cleanupStarted := time.Now()
 		controller := epic.NewController(record.Options, source, win32.EpicCloser{Source: source}, logger)
 		if err := controller.AfterGame(time.Now()); err != nil {
-			logger.Printf("agent Epic cleanup error=%v", err)
+			logger.Printf("agent Epic cleanup failed elapsed=%s error=%v", time.Since(cleanupStarted).Round(time.Millisecond), err)
 			return
 		}
+		logger.Printf("agent Epic cleanup completed elapsed=%s", time.Since(cleanupStarted).Round(time.Millisecond))
 	}
 	if err := os.Remove(path); err != nil {
 		logger.Printf("agent record removal error path=%q error=%v", path, err)

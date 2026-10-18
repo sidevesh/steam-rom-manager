@@ -1,6 +1,7 @@
 import { execFileSync } from "child_process";
 import * as fs from "fs";
 import * as paths from "../../paths";
+import { logImporterEvent } from "./importer-diagnostics";
 
 // The task is registered only when a saved Steam shortcut opts into recovery.
 // It runs with the current user's interactive token, without elevation.
@@ -35,16 +36,29 @@ export function ensureStoreAgentTask(): void {
   if (!fs.existsSync(paths.storeAgent)) {
     throw new Error(`SRM store agent is missing: ${paths.storeAgent}`);
   }
-  run(registerScript);
+  logImporterEvent("agent.task.register.start", { executable: paths.storeAgent });
+  try {
+    run(registerScript);
+    logImporterEvent("agent.task.register.complete", { executable: paths.storeAgent });
+  } catch (error) {
+    logImporterEvent("agent.task.register.failed", { executable: paths.storeAgent, error: String(error) }, "error");
+    throw error;
+  }
 }
 
 export function refreshStoreAgentTaskIfInstalled(): void {
   if (process.platform !== "win32" || !fs.existsSync(paths.storeAgent)) return;
-  run(`
+  try {
+    run(`
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
 $name = 'SRM Store Agent ' + $identity.User.Value
 if (Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue) {
 ${registerScript}
 }
 `);
+    logImporterEvent("agent.task.refresh.checked", { executable: paths.storeAgent });
+  } catch (error) {
+    logImporterEvent("agent.task.refresh.failed", { executable: paths.storeAgent, error: String(error) }, "error");
+    throw error;
+  }
 }
