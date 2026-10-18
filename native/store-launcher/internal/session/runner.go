@@ -25,6 +25,8 @@ type Launcher interface {
 type Hooks struct {
 	BeforeLaunch func() error
 	AfterGame    func(time.Time) error
+	GameFound    func(processes.Info) error
+	Completed    func() error
 }
 
 type Clock interface {
@@ -129,6 +131,11 @@ func RunWithHooks(options cli.Options, source processes.Source, launcher Launche
 	}
 
 	tracker := NewTracker(selected.Process)
+	if hooks.GameFound != nil {
+		if err := hooks.GameFound(selected.Process); err != nil {
+			return internalError("register game session", err)
+		}
+	}
 	var emptySince time.Time
 	for {
 		clock.Sleep(options.PollInterval)
@@ -160,6 +167,11 @@ func RunWithHooks(options cli.Options, source processes.Source, launcher Launche
 				completed = true
 				if err := hooks.AfterGame(emptySince); err != nil {
 					return internalError("finish store launcher", err)
+				}
+			}
+			if hooks.Completed != nil {
+				if err := hooks.Completed(); err != nil {
+					return internalError("complete game session", err)
 				}
 			}
 			return nil

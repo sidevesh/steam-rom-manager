@@ -18,6 +18,7 @@ import yargs, { Argv } from "yargs";
 import { hideBin } from "yargs/helpers";
 import { UserConfiguration } from "../models";
 import { deployStoreLauncherHelper } from "./store-launcher-helper";
+import { refreshStoreAgentTaskIfInstalled } from "../lib/helpers/store-agent-task";
 
 // Crash Reporting
 crashReporter.start({
@@ -249,6 +250,7 @@ autoUpdater.on("update-downloaded", (info) => {
 app.on("ready", () => {
   try {
     deployStoreLauncherHelper();
+    refreshStoreAgentTaskIfInstalled();
   } catch (error) {
     log.error("Failed to deploy the store launcher helper", error);
   }

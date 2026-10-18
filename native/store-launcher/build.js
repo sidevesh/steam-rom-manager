@@ -23,48 +23,25 @@ const moduleDir = __dirname;
 const packageVersion = require(
   path.join(moduleDir, "..", "..", "package.json"),
 ).version;
-const artifactPath = path.join(
-  moduleDir,
-  "dist",
-  `srm-store-launcher-windows-${goArch}.exe`,
-);
 const outputDir = path.join(moduleDir, "dist", electronArch);
-const outputPath = path.join(outputDir, "srm-store-launcher.exe");
 fs.mkdirSync(outputDir, { recursive: true });
-
-const result = spawnSync(
-  "go",
-  [
-    "build",
-    "-trimpath",
+for (const name of ["srm-store-launcher", "srm-store-agent"]) {
+  const artifactPath = path.join(moduleDir, "dist", `${name}-windows-${goArch}.exe`);
+  const outputPath = path.join(outputDir, `${name}.exe`);
+  const result = spawnSync("go", [
+    "build", "-trimpath",
     `-ldflags=-s -w -H=windowsgui -X main.version=${packageVersion}`,
-    "-o",
-    artifactPath,
-    "./cmd/srm-store-launcher",
-  ],
-  {
+    "-o", artifactPath, `./cmd/${name}`,
+  ], {
     cwd: moduleDir,
-    env: {
-      ...process.env,
-      CGO_ENABLED: "0",
-      GOOS: "windows",
-      GOARCH: goArch,
-    },
+    env: { ...process.env, CGO_ENABLED: "0", GOOS: "windows", GOARCH: goArch },
     stdio: "inherit",
-  },
-);
-
-if (result.error) {
-  console.error(result.error.message);
-  process.exit(1);
+  });
+  if (result.error) {
+    console.error(result.error.message);
+    process.exit(1);
+  }
+  if (result.status !== 0) process.exit(result.status ?? 1);
+  fs.copyFileSync(artifactPath, outputPath);
+  console.log(`Built ${artifactPath} and staged ${outputPath} (${electronArch} -> windows/${goArch})`);
 }
-
-if (result.status !== 0) {
-  process.exit(result.status ?? 1);
-}
-
-fs.copyFileSync(artifactPath, outputPath);
-console.log(
-  `Built ${artifactPath} and staged ${outputPath} ` +
-    `(${electronArch} -> windows/${goArch})`,
-);

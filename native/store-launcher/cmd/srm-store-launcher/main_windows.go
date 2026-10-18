@@ -11,6 +11,7 @@ import (
 	"github.com/SteamGridDB/steam-rom-manager/native/store-launcher/internal/epic"
 	"github.com/SteamGridDB/steam-rom-manager/native/store-launcher/internal/logging"
 	processes "github.com/SteamGridDB/steam-rom-manager/native/store-launcher/internal/process"
+	"github.com/SteamGridDB/steam-rom-manager/native/store-launcher/internal/recovery"
 	"github.com/SteamGridDB/steam-rom-manager/native/store-launcher/internal/session"
 	"github.com/SteamGridDB/steam-rom-manager/native/store-launcher/internal/storeuri"
 	"github.com/SteamGridDB/steam-rom-manager/native/store-launcher/internal/win32"
@@ -38,7 +39,43 @@ func run() (exitCode int) {
 		return session.ExitInvalidArguments
 	}
 	source := processes.WindowsSource{}
+	if options.UseAgent {
+		if err := recovery.AgentReady(); err != nil {
+			logger.Printf("agent required but unavailable: %v", err)
+			return session.ExitInternalError
+		}
+	}
 	hooks := session.Hooks{}
+	if options.UseAgent {
+		var recordPath string
+		hooks.GameFound = func(game processes.Info) error {
+			snapshot, err := source.Snapshot()
+			if err != nil {
+				return err
+			}
+			var helper processes.Info
+			for _, current := range snapshot {
+				if current.PID == uint32(os.Getpid()) {
+					helper = current
+					break
+				}
+			}
+			recordPath, err = recovery.Register(recovery.Record{
+				Helper: helper, Game: game, Options: options, RegisteredAt: time.Now(),
+			})
+			if err == nil {
+				logger.Printf("agent session registered path=%q helperPID=%d gamePID=%d", recordPath, helper.PID, game.PID)
+			}
+			return err
+		}
+		hooks.Completed = func() error {
+			if err := recovery.Complete(recordPath); err != nil {
+				return err
+			}
+			logger.Printf("agent session completed helperPID=%d", os.Getpid())
+			return nil
+		}
+	}
 	if options.Store == storeuri.Epic {
 		controller := epic.NewController(options, source, win32.EpicCloser{Source: source}, logger)
 		hooks.BeforeLaunch = controller.BeforeLaunch

@@ -30,6 +30,7 @@ type Options struct {
 	EpicLogFile        string
 	LogFile            string
 	AllowExistingMatch bool
+	UseAgent           bool
 }
 
 type argumentList []string
@@ -72,6 +73,7 @@ func Parse(args []string) (Options, error) {
 	flags.StringVar(&options.EpicLogFile, "epic-log-file", "", "Epic Games Launcher log override")
 	flags.StringVar(&options.LogFile, "log-file", "", "diagnostic log path")
 	flags.BoolVar(&options.AllowExistingMatch, "allow-existing-match", false, "allow attaching to a matching process that already exists")
+	flags.BoolVar(&options.UseAgent, "use-agent", false, "recover a session if Steam ends this helper early")
 	if err := flags.Parse(args); err != nil {
 		return options, err
 	}

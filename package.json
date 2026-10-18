@@ -26,6 +26,10 @@
         {
           "from": "native/store-launcher/dist/${arch}/srm-store-launcher.exe",
           "to": "helpers/store-launcher/srm-store-launcher.exe"
+        },
+        {
+          "from": "native/store-launcher/dist/${arch}/srm-store-agent.exe",
+          "to": "helpers/store-launcher/srm-store-agent.exe"
         }
       ]
     },

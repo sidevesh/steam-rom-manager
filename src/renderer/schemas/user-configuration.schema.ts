@@ -37,6 +37,7 @@ const sharedProperties = {
       },
     },
     executableArgs: { type: "string", default: "" },
+    useStoreAgent: { type: "boolean", default: false },
     executableModifier: { type: "string", default: "" },
     romDirectory: { type: "string", default: "" },
     steamDirectory: { type: "string", default: "${steamdirglobal}" },

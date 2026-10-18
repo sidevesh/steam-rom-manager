@@ -3,12 +3,16 @@ import * as fs from "fs";
 import * as path from "path";
 import * as paths from "../paths";
 
-const executableName = "srm-store-launcher.exe";
-
 export function deployStoreLauncherHelper(): void {
   if (process.platform !== "win32") {
     return;
   }
+
+  deploy("srm-store-launcher.exe", paths.storeLauncherHelper);
+  deploy("srm-store-agent.exe", paths.storeAgent);
+}
+
+function deploy(executableName: string, destination: string): void {
 
   const bundledPath = app.isPackaged
     ? path.join(
@@ -28,17 +32,17 @@ export function deployStoreLauncherHelper(): void {
 
   const bundled = fs.readFileSync(bundledPath);
   if (
-    fs.existsSync(paths.storeLauncherHelper) &&
-    bundled.equals(fs.readFileSync(paths.storeLauncherHelper))
+    fs.existsSync(destination) &&
+    bundled.equals(fs.readFileSync(destination))
   ) {
     return;
   }
 
-  fs.mkdirSync(path.dirname(paths.storeLauncherHelper), { recursive: true });
-  const temporaryPath = `${paths.storeLauncherHelper}.tmp-${process.pid}`;
+  fs.mkdirSync(path.dirname(destination), { recursive: true });
+  const temporaryPath = `${destination}.tmp-${process.pid}`;
   try {
     fs.writeFileSync(temporaryPath, bundled, { mode: 0o755 });
-    fs.renameSync(temporaryPath, paths.storeLauncherHelper);
+    fs.renameSync(temporaryPath, destination);
   } finally {
     if (fs.existsSync(temporaryPath)) {
       fs.unlinkSync(temporaryPath);

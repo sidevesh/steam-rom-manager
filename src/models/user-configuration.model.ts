@@ -29,6 +29,7 @@ export interface UserConfiguration {
   startInDirectory: string;
   userAccounts: UserAccountsInfo;
   parserInputs: { [inputKey: string]: string | boolean };
+  useStoreAgent?: boolean;
   titleFromVariable: {
     limitToGroups: string[];
     skipFileIfVariableWasNotFound: boolean;

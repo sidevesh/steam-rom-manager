@@ -263,6 +263,16 @@ export class ParsersComponent implements AfterViewInit, OnDestroy {
           label: "Parser Specific Configuration",
           isHidden: () => this.isHiddenIfNoParserInputs(),
         }),
+        useStoreAgent: new NestedFormElement.Toggle({
+          text: "Use SRM session agent to close the game if Steam ends the store launcher early",
+          initialValue: false,
+          isHidden: () => this.isHiddenIfStoreAgentUnavailable(),
+          onInfoClick: (self, path) => {
+            this.currentDoc.activePath = path.join();
+            this.currentDoc.content = "The session agent runs in your Windows account when this store's Steam shortcuts need it. If Steam stops the SRM store launcher before the game closes, the agent closes that game and lets Epic finish cloud sync before closing Epic. It is installed only after you save shortcuts with this option enabled.";
+            this.updateShowMarkdown(true);
+          },
+        }),
         parserInputs: (() => {
           let parsers = parserInfo.availableParsers;
           let parserInputs: { [k: string]: any } = {};
@@ -1538,6 +1548,29 @@ export class ParsersComponent implements AfterViewInit, OnDestroy {
     return this.observeField("parserType", (pType: ParserType) => {
       return !pType || !parserInfo.availableParserInputs[pType].length;
     });
+  }
+
+  private isHiddenIfStoreAgentUnavailable() {
+    const modes: Record<string, string> = {
+      Epic: "epicLauncherMode",
+      "Amazon Games": "amazonGamesLauncherMode",
+      "GOG Galaxy": "gogLauncherMode",
+      UPlay: "uplayLauncherMode",
+      UWP: "UWPLauncherMode",
+      "EA Desktop": "eaLauncherMode",
+    };
+    const fields = ["parserType", ...Object.values(modes)];
+    const values = fields.map((field) => {
+      const control = field === "parserType"
+        ? this.userForm.get(field)
+        : this.userForm.get(["parserInputs", field]);
+      return concat(of(control?.value), control?.valueChanges || of(undefined));
+    });
+    return combineLatest(values).pipe(map((state: any[]) => {
+      const type = state[0] as string;
+      const mode = modes[type];
+      return os.type() !== "Windows_NT" || !mode || !state[fields.indexOf(mode)];
+    }));
   }
 
   private loadConfiguration() {

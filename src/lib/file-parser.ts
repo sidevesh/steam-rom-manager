@@ -127,6 +127,17 @@ export class FileParser {
 
         // exceptions are always last; they overwrite all other changes
         .then(this.userExceptionsPromise.bind(this))
+        .then((state) => {
+          const parsedState = state as ParsedConfigFilesResults;
+          if (parsedState.config.useStoreAgent) {
+            for (const file of parsedState.parsedConfig.files) {
+              if (file.executableLocation?.toLowerCase() === paths.storeLauncherHelper.toLowerCase()) {
+                file.argumentString = `${file.argumentString || ""} --use-agent`.trim();
+              }
+            }
+          }
+          return parsedState;
+        })
         
         
         

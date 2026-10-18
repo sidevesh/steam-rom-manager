@@ -22,6 +22,14 @@ export const storeLauncherHelper: string = path.join(
   "store-launcher",
   "srm-store-launcher.exe",
 );
+export const storeAgent: string = path.join(
+  launcherHelperRoot,
+  "helpers",
+  "store-launcher",
+  "agent",
+  app.getVersion(),
+  "srm-store-agent.exe",
+);
 export const userSettings: string = path.join(userDataDir, "userSettings.json");
 export const userThemesDir: string = path.join(userDataDir, "User themes");
 export const userConfigurations: string = path.join(

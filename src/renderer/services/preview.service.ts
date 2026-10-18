@@ -54,6 +54,8 @@ import { superTypesMap } from "../../lib/parsers/available-parsers";
 import * as _ from "lodash";
 import * as fs from "fs-extra";
 import * as path from "path";
+import * as paths from "../../paths";
+import { ensureStoreAgentTask } from "../../lib/helpers/store-agent-task";
 import { OpenDialogReturnValue } from "electron";
 import { dialog } from "@electron/remote";
 import {
@@ -440,6 +442,9 @@ export class PreviewService {
               },
             );
         }
+        if (!removeAll && this.previewNeedsStoreAgent()) {
+          ensureStoreAgentTask();
+        }
         return vdfManager.write(
           batchWrite,
           this.appSettings.batchDownloadSize,
@@ -488,6 +493,21 @@ export class PreviewService {
         return false;
       });
     return chain;
+  }
+
+  private previewNeedsStoreAgent(): boolean {
+    for (const directory of Object.values(this.previewData || {})) {
+      for (const user of Object.values(directory)) {
+        for (const app of Object.values(user.apps)) {
+          if (app.status === "add" &&
+              app.executableLocation.toLowerCase() === paths.storeLauncherHelper.toLowerCase() &&
+              /(?:^|\s)--use-agent(?:\s|$)/.test(app.argumentString || "")) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
   }
 
   private updatePreviewDataUrls(outcomes: VDF_AllScreenshotsOutcomes) {
